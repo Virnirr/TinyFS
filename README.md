@@ -1,1 +1,1 @@
-# TinyFS
+Name: Zhixiang He, Sean Phun, Dennis Phun
