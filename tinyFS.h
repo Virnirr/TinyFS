@@ -39,12 +39,37 @@ int tfs_seek(fileDescriptor FD, int offset);
 success/error codes.*/
 
 /* The default size of the disk and file system block */
-#define BLOCKSIZE 256
+#define BLOCKSIZE 256 
+#define FILENAME_SIZE 9 // including NULL byte
 /* Your program should use a 10240 Byte disk size giving you 40 blocks
 total. This is a default size. You must be able to support different
 possible values */
 #define DEFAULT_DISK_SIZE 10240
 /* use this name for a default emulated disk file name */
 #define DEFAULT_DISK_NAME “tinyFSDisk”
+#define META_DATA_SIZE 4
 /* use as a special type to keep track of files */
 typedef int fileDescriptor;
+
+typedef struct file_extent *free_blocks;
+// size = 256 bytes
+typedef struct superblock {
+  char         meta_data[META_DATA_SIZE];
+  free_blocks *free_blocks; // by having a pointer to the first free block in a chain of free blocks
+} superblock;
+
+
+// keep tracks of meta data of each file in TinyFS
+typedef struct inode {
+  char meta_data[META_DATA_SIZE];
+  char file_name[FILENAME_SIZE];
+  int  file_size;
+  int  start_idx;
+} inode;
+
+typedef struct file_extent {
+  // second byte should be 0x44
+  char meta_data[META_DATA_SIZE];
+  char data[BLOCKSIZE - EXTENET_META_DATA_SIZE];
+} file_extent;
+
