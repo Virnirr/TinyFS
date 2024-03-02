@@ -1,6 +1,5 @@
 
 
-
 int openDisk(char *filename, int nBytes) {
   /* This functions opens a regular UNIX file and designates the first
     nBytes of it as space for the emulated disk. If nBytes is not exactly a
