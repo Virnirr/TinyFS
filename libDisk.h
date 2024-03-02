@@ -4,8 +4,9 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#define OFLAGS O_WRONLY | O_CREAT | O_TRUNC
-#define RWPERMS S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH
+#define OFLAGS_EXIST O_RDWR | O_APPEND
+#define OFLAGS_OVER  O_RDWR | O_CREAT | O_TRUNC
+#define RWPERMS      S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH
 
 int total_disk_space;
 char default_file = "default";

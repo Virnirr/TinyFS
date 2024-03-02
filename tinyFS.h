@@ -48,15 +48,18 @@ possible values */
 /* use this name for a default emulated disk file name */
 #define DEFAULT_DISK_NAME “tinyFSDisk”
 #define META_DATA_SIZE 4
+
+#define FILE_DESCRIPTOR_LIMIT 10240
+
 /* use as a special type to keep track of files */
 typedef int fileDescriptor;
 
 typedef struct file_extent *free_blocks;
 // size = 256 bytes
-typedef struct superblock {
+typedef struct Superblock {
   char         meta_data[META_DATA_SIZE];
   free_blocks *free_blocks; // by having a pointer to the first free block in a chain of free blocks
-} superblock;
+} Superblock;
 
 
 // keep tracks of meta data of each file in TinyFS

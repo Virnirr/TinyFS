@@ -16,37 +16,40 @@ int openDisk(char *filename, int nBytes) {
     if (nBytes < BLOCKSIZE && nBytes > 0) {
       perror("nBytes is less than BLOCKSIZE failure");
       return -1;
-    }
+    } 
     // If nBytes is not multiple of BLOCKSIZE, set it as multiple of BLOCKSIZE lower than nBytes, but > 0
-    if (nBytes > BLOCKSIZE || !(nBytes % BLOCKSIZE)) {
+    if (nBytes % BLOCKSIZE) {
       nBytes = nBytes - (nBytes % BLOCKSIZE);
-      total_disk_space = total_disk_space;
+    }
 
-      // Prepare a block of zeros
-      char zeros[nBytes] = {0}; // This initializes all elements to 0
-
-      // open or create filename
-      disk_fd = open(filename, OFLAGS, RWPERMS);
+    if (nBytes > BLOCKSIZE) {
+      // open or create filename, truncate if needed
+      disk_fd = open(filename, OFLAGS_OVER, RWPERMS);
       if (disk_fd < 0) {
         perror("open disk filename");
         return -1;
       }
-
-      // Write the nBytes of zeros to the file
-      size_t written = write(disk_fd, sizeof(zeros), nBytes);
-      if (written < sizeof(zeros)) {
-          perror("Failed to write zeros to file");
-          return -1;
-      }
-
+      // // Write to filename nBytes of 0 to specify size of disk in memory
+      // // Prepare a block of zeros
+      // char zeros[nBytes] = {0}; // This initializes all elements to 0
+      // // Write the block of zeros to the file
+      // size_t written = write(disk_fd, zeros, nBytes);
+      // if (written < nBytes) {
+      //   perror("Failed to write zeros to file");
+      //   return -1;
+      // }
     }
 
-    // If nBytes is 0, an existing disk is opened
+    // If nBytes is 0, an existing disk is opened, and don't overwrite content (i.e. append)
     if (nBytes == 0) {
-      // not sure what happens.
+      disk_fd = open(filename, OFLAGS_EXIST, RWPERMS);
+      if (disk_fd < 0) {
+        perror("open disk with 0 bytes");
+        return -1;
+      }
     }
 
-    return diskNumber++;
+    return disk_fd;
 }
 
 int closeDisk(int disk) {
