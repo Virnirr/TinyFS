@@ -99,13 +99,14 @@ int readBlock(int disk, int bNum, void *block) {
   return 0;
 }
 
-void writeBlock(int disk, int bNum, void *block) {
+int writeBlock(int disk, int bNum, void *block) {
   /*
   Takes diks number (fd) and logical number bNum and writes the content of the buffer "block" to that location
 
   Returns 0 on success, or -1 on failure
   */
-    // seeks to the logical number position on disk
+  
+  // seeks to the logical number position on disk
   int byte_offset = bNum * BLOCKSIZE;
   if (lseek(disk, SEEK_SET, byte_offset) < 0) {
     perror("lseek readBlock");

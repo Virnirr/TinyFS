@@ -56,14 +56,27 @@ possible values */
 #define FE_CODE 3
 #define FB_CODE 4
 
+#define MAGIC_NUM 0x44
+
 // file type codes
-#define FILE_CODE 1
-#define DIR_CODE 2
+#define FILE_CODE 0
+#define DIR_CODE 1
 
 
 #define FILE_DESCRIPTOR_LIMIT 10240
 #define PREFIX_SIZE 212
-#define FILE_EXTENT_DATA_LIMIT 249
+#define FILE_EXTENT_DATA_LIMIT 250
+
+#define NEXT_FREE_BLOCK_OFFSET 
+
+#define DIR_NAME_SIZE 9 /* root + name*/
+
+
+#define FILE_SIZE_TEMP 5
+
+#define BASE_TEN 10
+
+#define FILE_EXTENT_META_DATA_SIZE 6
 
 /* use as a special type to keep track of files */
 typedef int fileDescriptor;
@@ -74,7 +87,7 @@ typedef struct superblock {
   char   magic_num;                /* byte 1 */
   int    address_of_root;          /* byte 2-5*/
   int    next_free_block;         //  byte 6-9 by having a pointer to the first free block in a chain of free blocks
-  /* bytes 10-255 is \0 bytes */
+  char   rest[246];               /* bytes 10-255 is \0 bytes */
 } superblock;
 
 
@@ -96,9 +109,8 @@ typedef struct inode {
 typedef struct file_extent {
   char   block_type;                 /* byte 0 */
   char   magic_num;                  /* byte 1 */
-  char   file_type;                  /* byte 2 */
-  int    next_fe;                    /* byte 3-6 */
-  char data[FILE_EXTENT_DATA_LIMIT]; /* byte 7-255 */
+  int    next_fe;                    /* byte 2-5 */
+  char   data[FILE_EXTENT_DATA_LIMIT]; /* byte 6-255 */
 } file_extent;
 
 /* stores the free_block content block */
@@ -106,5 +118,13 @@ typedef struct free_block {
   char block_type;      /* byte 0 */
   char magic_num;       /* byte 1 */
   int  next_fb;         /* byte 2-5 Note: -1, if end of file */ 
-  /* byte 6-255 is \0 bytes */
+  char rest[250]        /* byte 6-255 is \0 bytes */
 } free_block;
+
+typedef struct file_pointer {
+  int  inode_offset;             // check the inode for this file
+  int  curr_file_extent_offset;  // current file extent offset
+  int  next_file_extent_offset;  // get the next file extent offset
+  int  pointer;                  // how mcuh to offset from the current file data
+  int  file_size;
+} file_pointer;
