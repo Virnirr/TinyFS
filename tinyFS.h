@@ -49,30 +49,62 @@ possible values */
 #define DEFAULT_DISK_NAME “tinyFSDisk”
 #define META_DATA_SIZE 4
 
+
+// block type codes
+#define SB_CODE 1
+#define INODE_CODE 2
+#define FE_CODE 3
+#define FB_CODE 4
+
+// file type codes
+#define FILE_CODE 1
+#define DIR_CODE 2
+
+
 #define FILE_DESCRIPTOR_LIMIT 10240
+#define PREFIX_SIZE 212
+#define FILE_EXTENT_DATA_LIMIT 249
 
 /* use as a special type to keep track of files */
 typedef int fileDescriptor;
 
-typedef struct file_extent *free_blocks;
-// size = 256 bytes
-typedef struct Superblock {
-  char         meta_data[META_DATA_SIZE];
-  free_blocks *free_blocks; // by having a pointer to the first free block in a chain of free blocks
-} Superblock;
+/* stores the superblock content block */
+typedef struct superblock {
+  char   block_type;               /* byte 0 */
+  char   magic_num;                /* byte 1 */
+  int    address_of_root;          /* byte 2-5*/
+  int    next_free_block;         //  byte 6-9 by having a pointer to the first free block in a chain of free blocks
+  /* bytes 10-255 is \0 bytes */
+} superblock;
 
 
-// keep tracks of meta data of each file in TinyFS
+/* stores the inode content block */
 typedef struct inode {
-  char meta_data[META_DATA_SIZE];
-  char file_name[FILENAME_SIZE];
-  int  file_size;
-  int  start_idx;
+  char   block_type;               /* byte 0 */
+  char   magic_num;                /* byte 1 */
+  char   file_type;                /* byte 2 */
+  char   filename[FILENAME_SIZE];  /* byte 3-11 */
+  int    file_size;                /* byte 12-15 */
+  time_t creation_time;            /* byte 16-23 */
+  time_t access_time;              /* byte 24-31 */
+  time_t modification_time;        /* byte 32-39 */
+  int    first_file_extent;        /* byte 40-43 */
+  char   prefix[PREFIX_SIZE];      /* byte 44-255. Note: Null is index 212 */
 } inode;
 
+/* stores the file extent content block */
 typedef struct file_extent {
-  // second byte should be 0x44
-  char meta_data[META_DATA_SIZE];
-  char data[BLOCKSIZE - EXTENET_META_DATA_SIZE];
+  char   block_type;                 /* byte 0 */
+  char   magic_num;                  /* byte 1 */
+  char   file_type;                  /* byte 2 */
+  int    next_fe;                    /* byte 3-6 */
+  char data[FILE_EXTENT_DATA_LIMIT]; /* byte 7-255 */
 } file_extent;
 
+/* stores the free_block content block */
+typedef struct free_block {
+  char block_type;      /* byte 0 */
+  char magic_num;       /* byte 1 */
+  int  next_fb;         /* byte 2-5 Note: -1, if end of file */ 
+  /* byte 6-255 is \0 bytes */
+} free_block;

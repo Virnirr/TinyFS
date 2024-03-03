@@ -3,6 +3,7 @@
 #include <sys/stat.h>
 #include <string.h>
 #include "tinyFS_errno.h"
+#include <limits.h>
 
 #define BLOCKTYPE_IDX 0
 #define MAGIC_IDX 1
@@ -21,6 +22,13 @@ int tfs_mkfs(char *filename, int nBytes) {
     Makes a blank TinyFS file system of size nBytes and mount it onto
     the unix "filename" file. 
   */
+
+  // Maximum number of blocks: 2,147,483,647
+  // Max storage: 2,147,483,647 blocks * 256 bytes =  550 GBs
+  if ((nBytes % BLOCKSIZE) > INT_MAX) {
+    perror("More than INT_MAX");
+    return EMAX_INT; // returns -7
+  }
 
   // initializing superblock of new file system
   superblock sb;
