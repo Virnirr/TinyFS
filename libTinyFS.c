@@ -28,12 +28,12 @@ int tfs_mkfs(char *filename, int nBytes) {
   int disk_error;
   // Maximum number of blocks: 2,147,483,647
   // Max storage: 2,147,483,647 blocks * 256 bytes =  550 GBs
-  if ((nBytes % BLOCKSIZE) > INT_MAX) {
+  if ((int) (nBytes / BLOCKSIZE) > INT_MAX) {
     perror("More than INT_MAX");
     return EMAX_INT; // returns -7
   }
 
-  if ((nByte % BLOCKSIZE) < 2) {
+  if ((int) (nBytes / BLOCKSIZE) < 2) {
     perror("Too Small");
     return EMINLIMIT;
   }
@@ -42,7 +42,7 @@ int tfs_mkfs(char *filename, int nBytes) {
   superblock sb;
   sb.block_type = SB_CODE;
   sb.magic_num = MAGIC_NUM;
-  sb.address_of_root = 1; // setting as 1 since it's 
+  sb.address_of_root = 1; // setting as 1 since logical offset 1
   sb.next_free_block = 2;
   sb.rest = {0}; // initialize the rest as 0
 
@@ -52,7 +52,7 @@ int tfs_mkfs(char *filename, int nBytes) {
   disk_fd = curr_fs_fd = openDisk(filename, nBytes);
   
   // write superblock into first block of file system
-  if ((disk_error = writeBlock(disk_fd, 0, *sb)) < 0) {
+  if ((disk_error = writeBlock(disk_fd, 0, &sb)) < 0) {
     perror("write block");
     return disk_error;
   }
@@ -64,17 +64,23 @@ int tfs_mkfs(char *filename, int nBytes) {
   fb.magic_num = MAGIC_NUM;
   fb.rest = {0}; // initialize the rest as 0
 
-  for (fs_idx = 1; fs_idx < (nBytes % BLOCKSIZE); fs_idx++) {
+  for (fs_idx = 2; fs_idx < (int) (nBytes / BLOCKSIZE) - 1; fs_idx++) {
     // initialize next free block as linked list and write it into file system
-    fb.next_fb = fs_idx;
-    if ((disk_error = writeBlock(disk_fd, 0, *fb)) < 0) {
+    fb.next_fb = fs_idx + 1;
+    if ((disk_error = writeBlock(disk_fd, fs_idx, &fb)) < 0) {
       perror("write block");
       return disk_error;
     }
   }
+  // last free block points to -1
+  fb.next_fb = -1;
+  if ((disk_error = writeBlock(disk_fd, fs_idx, &fb)) < 0) {
+    perror("write block");
+    return disk_error;
+  }
   return 0;
 }
-
+//“mounts” a TinyFS file system located within ‘diskname’
 int tfs_mount(char *diskname) {
   int disk_fd;
 
@@ -86,19 +92,46 @@ int tfs_mount(char *diskname) {
 
   int num_read;
   char buffer[BLOCKSIZE];
+  uint8_t TFS_buffer[BLOCKSIZE];
+  // read superblock of current system
+  if (readBlock(curr_fs_fd, 0, &TFS_buffer) < 0) {
+    perror("readBlock")
+    return READBLOCK_FAIL;
+  }
+  free_index = convert_str_to_int(TFS_buffer, 6, 9);
   // make sure the new disk is a valid file system
-  while ((num_read = read(disk_fd, buffer, BLOCKSIZE)) > 0) {
+  while ((num_read = read(curr_fs_fd, buffer, BLOCKSIZE)) > 0) {
     // make sure every magic number is correct
     if (buffer[MAGIC_IDX] != MAGIC_NUM) {
       return NOT_A_FILE_SYSTEM;
     }
+    // writing to new fd
+    if (writeBlock(disk_fd, free_index, buffer) < 0){
+      perror("write");
+      return -1;
+    }
+    //fix dis 
+    if (readBlock(curr_fs_fd, free_index, &TFS_buffer) < 0) {
+      perror("readBlock")
+      return READBLOCK_FAIL;
+    }
+    free_index = convert_str_to_int(TFS_buffer, 2, 5);
+     
   }
-
+  curr_fs_fd = disk_fd;
   return 0;
 }
 
 int tfs_unmount(void) {
   /* unmounts the current file system */
+
+  if (curr_fs_fd < 0)
+  {
+    perror("unmount");
+    return UMOUNT_FAIL;
+  }
+  closeDisk(curr_fs_fd);
+  curr_fs_fd = -1;
   return 0;
 }
 

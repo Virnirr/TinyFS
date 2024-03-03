@@ -17,3 +17,5 @@
 #define EMINLIMIT -8
 
 #define NOT_A_FILE_SYSTEM -10
+#define UMOUNT_FAIL -11
+#define READBLOCK_FAIL -12
