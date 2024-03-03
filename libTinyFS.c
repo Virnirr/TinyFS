@@ -242,15 +242,15 @@ file’s content, to the file system.  */
 int tfs_deleteFile(fileDescriptor FD) {
   /* Takes a file descriptor and remove the file (set it as free block) in the tinyFS */
 
-  int file_inode_offset = file_descriptor_table[FD];
+  file_pointer fp_struct = file_descriptor_table[FD];
   
   uint8_t TFS_buffer[BLOCKSIZE];
 
-  // get the superblock check for first free block
-  if ((disk_error = readBlock(curr_fs_fd, file_inode_offset, TFS_buffer)) < 0) {
+  // get the superblock check for first file content block
+  if ((disk_error = readBlock(curr_fs_fd, fp_struct.inode_offset, TFS_buffer)) < 0) {
     return disk_error;
   }
-
+  //gets content of inode
   int file_content_offset = convert_str_to_int(TFS_buffer, 40, 43);
 
   // there's content, so set it to free block
@@ -266,7 +266,11 @@ int tfs_deleteFile(fileDescriptor FD) {
       return -1;
     }
   }
-
+  // free the inode
+  if (set_block_to_free(fp_struct.inode_offset) < 0) {
+    perror("set block to free");
+    return -1;
+  }
   return 0;
 }
 
