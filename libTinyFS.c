@@ -277,7 +277,7 @@ int tfs_deleteFile(fileDescriptor FD) {
 int tfs_readByte(fileDescriptor FD, char *buffer) {
   /* reads one byte from the file and copies it to buffer, using the
   current file pointer location and incrementing it by one upon success. */
-  int curr_file_pointer = file_descriptor_table[FD];
+  file_pointer curr_file_pointer = file_descriptor_table[FD];
   int pointer = curr_file_pointer.pointer;
   int next_fe_offset = curr_file_pointer.next_file_extent_offset;
   int curr_fe_offset = curr_file_pointer.curr_file_extent_offset;
@@ -303,16 +303,65 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
   // increment current file pointer to the next byte;
   curr_file_pointer.pointer++;
 
-  // end of first file pointer and 
+  // end of data block for file pointer and there's still a data block, 
+  // change curr_file_extent_offset and next_file_extent_offset
   if (curr_file_pointer - FILE_EXTENT_META_DATA_SIZE > FILE_EXTENT_DATA_LIMIT) {
-    
+    if (next_fe_offset != -1){
+      int disk_error;
+        if ((disk_error = readBlock(curr_fs_fd, next_fe_offset, TFS_buffer)) < 0) {
+          return disk_error;
+        }
+      curr_fe_offset = next_fe_offset;
+      next_fe_offset = convert_str_to_int(TFS_buffer, 2, 5);
+    }
   }
 
   return 0;
 }
-
+// change the file pointer location to offset (absolute). 
+// Returns success/error codes
 int tfs_seek(fileDescriptor FD, int offset) {
   /* implement seek based off of tfs_readByte */
+
+  file_pointer curr_file_pointer = file_descriptor_table[FD];
+  // if fd doesn't exist
+  if (curr_file_pointer == NULL)
+  {
+    perror("unopened file");
+    return EBADF;
+  }
+  // if offset is invalid
+  if (offset > curr_file_pointer.file_size || offset < 0){
+    perror("offset");
+    return OFFSET_FAIL;
+  }
+
+  int pointer = curr_file_pointer.pointer;
+  pointer = offset % FILE_EXTENT_DATA_LIMIT
+  //get curr_file_extent_offset
+ 
+  uint8_t TFS_buffer[BLOCKSIZE];
+  // initially sets curr_file_extent_offset to the first extent
+  // and next_file_extent_offset to the one after first extent
+  int read_inode;
+  if ((read_inode = readBlock(FD, curr_file_pointer.inode_offset, TFS_buffer)) < 0) {
+      return read_inode;
+  }
+  int curr_file_extent = convert_str_to_int(TFS_buffer, 40, 43);
+  if ((read_inode = readBlock(FD, curr_file_extent, TFS_buffer)) < 0) {
+      return read_inode;
+  }
+  int next_file_extent = convert_str_to_int(TFS_buffer, 2, 5);
+  // then, if offset is larger than one file extent, loop through the file extents 
+   int page_offset = (int) (offset / FILE_EXTENT_DATA_LIMIT);
+  for (int i = 0; i < page_offset; i++)
+  {
+    curr_file_extent = next_file_extent;
+    if ((read_inode = readBlock(FD, curr_file_extent, TFS_buffer)) < 0) {
+    return read_inode;
+    }
+    next_file_extent = convert_str_to_int(TFS_buffer, 2, 5);
+  }
   return 0;
 }
 

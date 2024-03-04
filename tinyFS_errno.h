@@ -19,3 +19,4 @@
 #define NOT_A_FILE_SYSTEM -10
 #define UMOUNT_FAIL -11
 #define READBLOCK_FAIL -12
+#define OFFSET_FAIL -13 //seek offset isn't valid
