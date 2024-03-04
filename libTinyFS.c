@@ -478,17 +478,17 @@ int tfs_seek(fileDescriptor FD, int offset) {
 }
 
 // djb2 hash function for strings
-unsigned long
-hash(unsigned char *str)
-{
-    unsigned long hash = 5381;
-    int c;
+// unsigned long
+// hash(unsigned char *str)
+// {
+//     unsigned long hash = 5381;
+//     int c;
 
-    while (c = *str++)
-        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+//     while (c = *str++)
+//         hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
 
-    return hash;
-}
+//     return hash;
+// }
 
 int convert_str_to_int(char *buffer, int start, int end) {
   /* Takes as input */
