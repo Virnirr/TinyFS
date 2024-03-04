@@ -183,7 +183,7 @@ int tfs_closeFile(fileDescriptor FD) {
     return EBADF;
   }
   
-  file_descriptor_table[FD] = -1;
+  file_descriptor_table[FD] = NULL;
 
   return 0;
 }
