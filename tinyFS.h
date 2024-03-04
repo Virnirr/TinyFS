@@ -59,8 +59,8 @@ possible values */
 #define MAGIC_NUM 0x44
 
 // file type codes
-#define FILE_CODE 0
-#define DIR_CODE 1
+#define DIR_CODE 0
+#define FILE_CODE 1
 
 
 #define FILE_DESCRIPTOR_LIMIT 10240
@@ -77,6 +77,12 @@ possible values */
 #define BASE_TEN 10
 
 #define FILE_EXTENT_META_DATA_SIZE 6
+
+
+#define ROOT_POS 2
+#define SIZE_OF_INT_IN_STR sizeof(int) + 1
+
+#define MAX_CHILD 52
 
 /* use as a special type to keep track of files */
 typedef int fileDescriptor;
@@ -102,7 +108,8 @@ typedef struct inode {
   time_t access_time;              /* byte 24-31 */
   time_t modification_time;        /* byte 32-39 */
   int    first_file_extent;        /* byte 40-43 */
-  char   prefix[PREFIX_SIZE];      /* byte 44-255. Note: Null is index 212 */
+  int    parent_inode;             /* byte 44-47 */
+  int    child[MAX_CHILD];         /* byte 44-255. Note: Null is index 212 */
 } inode;
 
 /* stores the file extent content block */

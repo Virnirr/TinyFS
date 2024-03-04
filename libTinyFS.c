@@ -57,14 +57,53 @@ int tfs_mkfs(char *filename, int nBytes) {
     return disk_error;
   }
   
-  int fs_idx;
+  // write the root inode into the second block in TinyFS
+  inode root;
+  root.block_type = INODE_CODE;
+  root.magic_num = MAGIC_NUM;
+  root.file_type = DIR_CODE;
+  root.file_size = 0; // directory has file size of 0
+
+  // Get current time as time_t object
+  time_t now = time(NULL);
+  root.creation_time = now;
+  root.access_time = now;
+  root.modification_time = now;
+  root.first_file_extent = ROOT_POS; // position of where to find the child directories in hierachical
+  // set filename to NULL for root nodes
+  memset(root.filename, '\0', FILENAME_SIZE);
+  // copy "/" into prefix and append with rest with NULL or \0
+  strncpy(root.prefix, "/", PREFIX_SIZE);
+  
+  int fs_idx = ROOT_POS;
+  
+  // write the root block into TinyFS
+  if ((disk_error = writeBlock(disk_fd, fs_idx, &root)) < 0) {
+    perror("write block");
+    return disk_error;
+  }
+  
+  // This file extent for directory will store all the root child's index position in the TinyFS
+  file_extent fe;
+  fe.block_type = FE_CODE;
+  fe.magic_num = MAGIC_NUM;
+  fe.next_fe = -1;
+  // set the data to all NULL
+  memset(fe.data, '\0', FILE_EXTENT_DATA_LIMIT);
+
+  // write root block's file extent into TinyFS
+  if ((disk_error = writeBlock(disk_fd, fs_idx, &root)) < 0) {
+    perror("write block");
+    return disk_error;
+  }
+  
   // initialize free block
   free_blocks fb;
   fb.block_type = FB_CODE;
   fb.magic_num = MAGIC_NUM;
   fb.rest = {0}; // initialize the rest as 0
 
-  for (fs_idx = 2; fs_idx < (int) (nBytes / BLOCKSIZE) - 1; fs_idx++) {
+  for (fs_idx = 3; fs_idx < (int) (nBytes / BLOCKSIZE) - 1; fs_idx++) {
     // initialize next free block as linked list and write it into file system
     fb.next_fb = fs_idx + 1;
     if ((disk_error = writeBlock(disk_fd, fs_idx, &fb)) < 0) {
@@ -72,14 +111,19 @@ int tfs_mkfs(char *filename, int nBytes) {
       return disk_error;
     }
   }
+
   // last free block points to -1
   fb.next_fb = -1;
   if ((disk_error = writeBlock(disk_fd, fs_idx, &fb)) < 0) {
     perror("write block");
     return disk_error;
   }
+
+  // return 0 on success
   return 0;
-}
+} 
+
+
 //“mounts” a TinyFS file system located within ‘diskname’
 int tfs_mount(char *diskname) {
   int disk_fd;
@@ -138,10 +182,57 @@ int tfs_unmount(void) {
 fileDescriptor tfs_openFile(char *name) {
 
   unsigned long fd_idx = hash(name) % FILE_DESCRIPTOR_LIMIT;
-  // file is open and exist in file descriptor table
-  if (file_descriptor_table[fd_idx] != -1) {
-    return file_descriptor_table[fd_idx];
+  int fd_table_idx;
+  file_pointer curr_fd_table_pointer;
+  int logical_offset;
+  int first_null_fd_idx = NULL;
+
+  uint8_t TFS_buffer[BLOCKSIZE];
+  char filename_buffer[FILENAME_SIZE];
+
+  // check all the filedescriptor table to see if you can find the filename containing "name"
+  for (fd_table_idx = 0; fd_table_idx < FILE_DESCRIPTOR_LIMIT; fd_table_idx++) {
+    // if the fd_table_idx is not NULL, check to see if the inode filename matches parameter name.
+    // if it does, return that file descriptor since it's already opened.
+
+    // save the first null file descriptor table index for later when creating new file
+    // so you don't have to loop twice.
+    if (first_null_fd_idx != NULL && file_descriptor_table[fd_table_idx] == NULL) {
+      first_null_fd_idx = fd_table_idx;
+    }
+
+
+    if (file_descriptor_table[fd_table_idx] != NULL) {
+
+      curr_fd_table_pointer = file_descriptor_table[fd_table_idx];
+      logical_offset = curr_fd_table_pointer.inode_offset;
+
+      // read the block from the logical offset into TFS_buffer
+      if ((disk_error = readBlock(curr_fs_fd, logical_offset, TFS_buffer)) < 0) {
+        return disk_error;
+      }
+
+      // copy filename into filename_buffer from the inode to check if it's similar to name
+      strncpy(filename_buffer, TFS_buffer + 3, FILENAME_SIZE);
+
+      // it is correct, so return it
+      if (!strcmp(name, filename_buffer)) {
+        return fd_table_idx;
+      }
+    }
   }
+
+  // if you are unable to find it, then find an empty space and allocate file pointer for "name" and write to it.
+
+  // create new inode
+  inode new_file_inode;
+  fill_new_inode_buffer(&new_file_inode, FILE_CODE, name);
+
+  // file is open and exist in file descriptor table
+  // if (file_descriptor_table[fd_idx] != NULL) {
+  //   return file_descriptor_table[fd_idx];
+  // }
+
   int num_read;
   /* rest read pointer */
   if (lseek(in_fd, 0, SEEK_SET) == -1) {
@@ -158,7 +249,7 @@ fileDescriptor tfs_openFile(char *name) {
     if (buffer[BLOCKTYPE_IDX] == INODE_CODE && !strcmp(filename, name)) {
       
       // find a location that exist and set that location as the logical disk offset.
-      file_fd_idx = hash(name);
+      // file_fd_idx = hash(name); do linear probe instead
       while (file_descriptor_table[file_fd_idx] != -1) {
         file_fd_idx++;
       }
@@ -173,6 +264,27 @@ fileDescriptor tfs_openFile(char *name) {
   }
 
   return 0;
+}
+
+void fill_new_inode_buffer(inode *inode_buffer, int file_type, char *filename) {
+  /* Fills in new inode blocks to write */
+  inode_buffer->block_type = INODE_CODE;
+  inode_buffer->magic_num = MAGIC_NUM;
+  inode_buffer->file_type = file_type;
+  strncpy(inode_buffer->filename, filename, FILENAME_SIZE);
+  inode_buffer->file_size = 0;
+
+  // Get current time as time_t object
+  time_t now = time(NULL);
+  inode_buffer->creation_time = now;
+  inode_buffer->access_time = now;
+  inode_buffer->modification_time = now;
+
+  inode_buffer->first_file_extent = -1;
+  inode_buffer->parent_inode = -1;
+  
+  // set all children to -1 (i.e. no children)
+  memset(inode_buffer->child, -1, MAX_CHILD);
 }
 
 int tfs_closeFile(fileDescriptor FD) {
@@ -381,10 +493,14 @@ hash(unsigned char *str)
 int convert_str_to_int(char *buffer, int start, int end) {
   /* Takes as input */
   int i, j = 0;
-  for (i = start; i < end + 1; i++) {
-      size_temp[j++] = buffer[i];
-  }
-  return strtol(size_temp, NULL, BASE_TEN);
+  char int_in_str[SIZE_OF_INT_IN_STR];
+
+  strncpy(int_in_str, buffer+start, SIZE_OF_INT_IN_STR - 1);
+  int_int_str[SIZE_OF_INT_IN_STR] = '\0';
+  // for (i = start; i < end + 1; i++) {
+  //     size_temp[j++] = buffer[i];
+  // }
+  return strtol(int_in_str, NULL, BASE_TEN);
 }
 
 int set_block_to_free(int offset) {
