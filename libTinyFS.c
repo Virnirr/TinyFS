@@ -1,8 +1,8 @@
 #include "libDisk.h"
-#include "tfs.h"
+#include "tinyFS.h"
 #include <sys/stat.h>
 #include <string.h>
-#include "tinyFS_errno.h"
+#include "TinyFS_errno.h"
 #include <limits.h>
 
 #define BLOCKTYPE_IDX 0
@@ -127,43 +127,22 @@ int tfs_mkfs(char *filename, int nBytes) {
 //“mounts” a TinyFS file system located within ‘diskname’
 int tfs_mount(char *diskname) {
   int disk_fd;
-
+  int status;
+  if ((status = unmount(curr_fs_fd) < 0))
+  {
+    //if unmount fails because of closeDisk
+    if (status == CLOSEDISK_FAIL)
+    {
+      return CLOSEDISK_FAIL;
+    }
+  }
   // open existing disk
   if ((disk_fd = openDisk(diskname, 0)) < 0) {
     perror("mount");
     return disk_fd; // this will be the error number
   }
-
-  int num_read;
-  char buffer[BLOCKSIZE];
-  uint8_t TFS_buffer[BLOCKSIZE];
-  // read superblock of current system
-  if (readBlock(curr_fs_fd, 0, &TFS_buffer) < 0) {
-    perror("readBlock")
-    return READBLOCK_FAIL;
-  }
-  free_index = convert_str_to_int(TFS_buffer, 6, 9);
-  // make sure the new disk is a valid file system
-  while ((num_read = read(curr_fs_fd, buffer, BLOCKSIZE)) > 0) {
-    // make sure every magic number is correct
-    if (buffer[MAGIC_IDX] != MAGIC_NUM) {
-      return NOT_A_FILE_SYSTEM;
-    }
-    // writing to new fd
-    if (writeBlock(disk_fd, free_index, buffer) < 0){
-      perror("write");
-      return -1;
-    }
-    //fix dis 
-    if (readBlock(curr_fs_fd, free_index, &TFS_buffer) < 0) {
-      perror("readBlock")
-      return READBLOCK_FAIL;
-    }
-    free_index = convert_str_to_int(TFS_buffer, 2, 5);
-     
-  }
-  curr_fs_fd = disk_fd;
-  return 0;
+  curr_fs_fd = disk_fd; //set the curr fd to the one that was just mounted 
+  return MOUNT_SUCCESS;
 }
 
 int tfs_unmount(void) {
@@ -174,9 +153,12 @@ int tfs_unmount(void) {
     perror("unmount");
     return UMOUNT_FAIL;
   }
-  closeDisk(curr_fs_fd);
+  if (closeDisk(curr_fs_fd) < 0)
+  {
+    return CLOSEDISK_FAIL;
+  }
   curr_fs_fd = -1;
-  return 0;
+  return UNMOUNT_SUCCESS;
 }
 
 fileDescriptor tfs_openFile(char *name) {

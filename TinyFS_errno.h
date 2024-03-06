@@ -1,3 +1,5 @@
+#define MOUNT_SUCCESS 11 // no such file or directory
+#define UNMOUNT_SUCCESS 10 // no such file or directory
 #define ENOENT -1 // no such file or directory
 
 #define EEXIST -2 // file exist
@@ -20,3 +22,4 @@
 #define UMOUNT_FAIL -11
 #define READBLOCK_FAIL -12
 #define OFFSET_FAIL -13 //seek offset isn't valid
+#define CLOSEDISK_FAIL -14 //seek offset isn't valid

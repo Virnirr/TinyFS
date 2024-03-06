@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
-
+#include "TinyFS_errno.h"
 
 int openDisk(char *filename, int nBytes) {
   /* Opens a regular UNIX file and designates the first nBytes, which is multiple of 
@@ -73,7 +73,7 @@ int closeDisk(int disk) {
   // close tar file 
   if (close(disk) < 0) {
     perror("close");
-    return -1;
+    return CLOSEDISK_FAIL;
   }
   return 0;
 }
