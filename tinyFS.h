@@ -81,6 +81,7 @@ possible values */
 
 #define ROOT_POS 2
 #define SIZE_OF_INT_IN_STR sizeof(int) + 1
+#define SIZE_OF_TIME_T_IN_STR sizeof(time_t) + 1
 
 #define MAX_CHILD 52
 

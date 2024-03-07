@@ -4,7 +4,7 @@
 #include <string.h>
 #include "TinyFS_errno.h"
 #include <limits.h>
-
+#include <time.h>
 #define BLOCKTYPE_IDX 0
 #define MAGIC_IDX 1
 #define NEXT_ADDR_IDX 2
@@ -501,6 +501,33 @@ int tfs_seek(fileDescriptor FD, int offset) {
   return 0;
 }
 
+//returns a file descriptor's creation time
+time_t tfs_readFileInfo(fileDescriptor FD) {
+  file_pointer fd_file_pointer = file_descriptor_table[FD];
+// if fd doesn't exist
+  if (fd_file_pointer == NULL)
+  {
+    perror("unopened file");
+    return EBADF;
+  }
+  //grabbing inode buffer   
+  uint8_t TFS_buffer[BLOCKSIZE];
+  if ((disk_error = readBlock(FD, fd_file_pointer.inode_offset, TFS_buffer)) < 0) {
+    return disk_error;
+  }
+  //reading the creation time at it's location in inode 
+  char time_in_str[SIZE_OF_TIME_T_IN_STR];
+  strncpy(time_in_str, TFS_buffer+16, SIZE_OF_INT_IN_STR - 1);
+  time_in_str[SIZE_OF_INT_IN_STR] = '\0';
+  // changing accessed time to now, and writing it back
+  time_t now = time(NULL);
+  memcpy(TFS_buffer + 24, &now, sizeof(time_t));
+  if ((disk_error = writeBlock(FD, fd_file_pointer.inode_offset, TFS_buffer)) < 0) {
+    return disk_error;
+  }
+  //returning creation time
+  return (time_t) strtol(time_in_str, NULL, BASE_TEN);
+}
 
 /* ------------------------------------ Util Functions ------------------------------------ */
 
