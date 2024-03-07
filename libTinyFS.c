@@ -566,17 +566,42 @@ int set_block_to_free(int offset) {
   return 0;
 }
 
-int get_next_free_and_set() {
+int remove_next_free_and_set_free_after_it() {
   /* get next free block and set it to the free block after it*/
-
+  uint8_t TFS_buffer[BLOCKSIZE];
+  unsigned char bytes[4];
   // get the superblock check for first free block
   if ((disk_error = readBlock(curr_fs_fd, 0, TFS_buffer)) < 0) {
     return disk_error;
   }
 
   /* the next free block in offset  */
-  next_free_block_offset = convert_str_to_int(TFS_buffer, 6, 10);
+  next_free_block_offset = convert_str_to_int(TFS_buffer, 6, 9);
 
   // TODO: finish this 
-
+  //read the next_free_block, then get it's free block after it
+  if ((disk_error = readBlock(curr_fs_fd, next_free_block_offset, TFS_buffer)) < 0) {
+    return disk_error;
+  }
+  free_block_after_it = convert_str_to_int(TFS_buffer, 2, 5);
+  
+  // get the superblock again
+  if ((disk_error = readBlock(curr_fs_fd, 0, TFS_buffer)) < 0) {
+    return disk_error;
+  }
+  //converting free block after it into char bytes
+  bytes[0] = (free_block_after_it >> 24) & 0xFF;
+  bytes[1] = (free_block_after_it >> 16) & 0xFF;
+  bytes[2] = (free_block_after_it >> 8) & 0xFF;
+  bytes[3] = free_block_after_it & 0xFF;
+  //overwriting chars in next_free_block in TFS buffer
+  for (int i = 0; i < 4; i++)
+  {
+    TFS_buffer[i + 6] = bytes[i];
+  }
+  //writing the buffer back into superblock
+  if ((disk_error = writeBlock(curr_fs_fd, 0, TFS_buffer)) < 0) {
+    return disk_error;
+  }
+  return next_free_block_offset;
 }
