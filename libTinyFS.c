@@ -4,12 +4,14 @@
 #include <string.h>
 #include "TinyFS_errno.h"
 #include <limits.h>
+#include <stdint.h>
+#include <stdlib.h>
 #include <time.h>
 #define BLOCKTYPE_IDX 0
 #define MAGIC_IDX 1
 #define NEXT_ADDR_IDX 2
 #define EMPTY_IDX 3
-
+#define EXIT_FAILURE 1
 
 #define ROOT_ADDRESS_IDX 1
 #define NEXT_FREE_BLOCK_IDX 2
@@ -18,10 +20,125 @@
   Note: table[open_file_idx] = offset_in_tinyFS
   < 0 : File Descriptor not opened.
 */
-file_pointer file_descriptor_table[FILE_DESCRIPTOR_LIMIT] = {NULL}:
+file_pointer file_descriptor_table[FILE_DESCRIPTOR_LIMIT] = {NULL};
 
 int curr_fs_fd;
+int disk_error;
 
+
+/* ------------------------------------ Util Functions ------------------------------------ */
+
+
+void fill_new_inode_buffer(inode *inode_buffer, int file_type, char *filename) {
+  /* Fills in new inode blocks to write */
+  inode_buffer->block_type = INODE_CODE;
+  inode_buffer->magic_num = MAGIC_NUM;
+  inode_buffer->file_type = file_type;
+  strncpy(inode_buffer->filename, filename, FILENAME_SIZE);
+  inode_buffer->file_size = 0;
+
+  // Get current time as time_t object
+  time_t now = time(NULL);
+  inode_buffer->creation_time = now;
+  inode_buffer->access_time = now;
+  inode_buffer->modification_time = now;
+
+  inode_buffer->first_file_extent = -1;
+
+  
+  // set all rest to 0 (i.e. no children)
+  memset(inode_buffer->rest, 0, REST_OF_INODE);
+}
+
+
+int convert_str_to_int(char *buffer, int start, int end) {
+  /* Takes as input */
+  char int_in_str[SIZE_OF_INT_IN_STR];
+
+  strncpy(int_in_str, buffer+start, SIZE_OF_INT_IN_STR - 1);
+  int_in_str[SIZE_OF_INT_IN_STR] = '\0';
+  // for (i = start; i < end + 1; i++) {
+  //     size_temp[j++] = buffer[i];
+  // }
+  return strtol(int_in_str, NULL, BASE_TEN);
+}
+
+int set_block_to_free(int offset) {
+  /* Uses a stack structure LIFO. Util function to set block to free. */
+
+  free_block fe;
+  fe.block_type = FE_CODE;
+  fe.magic_num = MAGIC_NUM;
+  int disk_error;
+  int next_free_block_offset;
+  uint8_t TFS_buffer[BLOCKSIZE];
+    // get the superblock check for first free block
+  if ((disk_error = readBlock(curr_fs_fd, 0, TFS_buffer)) < 0) {
+    return disk_error;
+  }
+
+  /* the next free block in offset  */
+  next_free_block_offset = convert_str_to_int(TFS_buffer, 6, 9);
+
+  fe.next_fb = next_free_block_offset; // set it to first
+  
+    // write content into disk
+  if (writeBlock(curr_fs_fd, offset, &fe) < 0) {
+    perror("Disk Write");
+    return -1;
+  }
+
+  // making the block u just freed into the next_free_block of superblock
+  memcpy(TFS_buffer + 6, &offset, sizeof(int));
+  if (writeBlock(curr_fs_fd, 0, TFS_buffer) < 0) {
+  perror("Disk Write");
+  return -1;
+  }
+  return 0;
+}
+
+int remove_next_free_and_set_free_after_it() {
+  /* get next free block and set it to the free block after it*/
+  uint8_t TFS_buffer[BLOCKSIZE];
+  unsigned char bytes[4];
+  int next_free_block_offset, free_block_after_it;
+  // get the superblock check for first free block
+  if ((disk_error = readBlock(curr_fs_fd, 0, TFS_buffer)) < 0) {
+    return disk_error;
+  }
+
+  /* the next free block in offset  */
+  next_free_block_offset = convert_str_to_int(TFS_buffer, 6, 9);
+  if(next_free_block_offset == -1){
+    return LIMIT_REACHED;
+  } 
+  // TODO: finish this 
+  //read the next_free_block, then get it's free block after it
+  if ((disk_error = readBlock(curr_fs_fd, next_free_block_offset, TFS_buffer)) < 0) {
+    return disk_error;
+  }
+  free_block_after_it = convert_str_to_int(TFS_buffer, 2, 5);
+  
+  // get the superblock again
+  if ((disk_error = readBlock(curr_fs_fd, 0, TFS_buffer)) < 0) {
+    return disk_error;
+  }
+  //converting free block after it into char bytes
+  bytes[0] = (free_block_after_it >> 24) & 0xFF;
+  bytes[1] = (free_block_after_it >> 16) & 0xFF;
+  bytes[2] = (free_block_after_it >> 8) & 0xFF;
+  bytes[3] = free_block_after_it & 0xFF;
+  //overwriting chars in next_free_block in TFS buffer
+  for (int i = 0; i < 4; i++)
+  {
+    TFS_buffer[i + 6] = bytes[i];
+  }
+  //writing the buffer back into superblock
+  if ((disk_error = writeBlock(curr_fs_fd, 0, TFS_buffer)) < 0) {
+    return disk_error;
+  }
+  return next_free_block_offset;
+}
 
 /* ------------------------------------ Main TinyFS library functions ------------------------------------ */
 
@@ -42,20 +159,24 @@ int tfs_mkfs(char *filename, int nBytes) {
     perror("Too Small");
     return EMINLIMIT;
   }
-
+  
   // initializing superblock of new file system
   superblock sb;
   sb.block_type = SB_CODE;
   sb.magic_num = MAGIC_NUM;
   sb.address_of_root = ROOT_ADDRESS_IDX; // setting as 1 since logical offset 1
   sb.next_free_block = NEXT_FREE_BLOCK_IDX; // starts at 2
-  sb.rest = {0}; // initialize the rest as 0
-
+  // initialize the rest as 0
+  for (int i = 0; i < REST_OF_INODE; i++)
+  {
+    sb.rest[i] = 0;
+  }
   // initializing free blocks;
-  free_blocks *fb;
+  //free_block fb;
 
   // open new filename
-  disk_fd = curr_fs_fd = openDisk(filename, nBytes);
+  
+  int disk_fd = curr_fs_fd = openDisk(filename, nBytes);
   
   // write superblock into first block of file system
   if ((disk_error = writeBlock(disk_fd, 0, &sb)) < 0) {
@@ -64,7 +185,7 @@ int tfs_mkfs(char *filename, int nBytes) {
   }
   // write the root inode into the second block in TinyFS
   inode root;
-  fill_new_inode_buffer(&root *inode_buffer, DIR_CODE, NULL); // only root will have filename = NULL
+  fill_new_inode_buffer(&root, DIR_CODE, NULL); // only root will have filename = NULL
   // root.block_type = INODE_CODE;
   // root.magic_num = MAGIC_NUM;
   // root.file_type = DIR_CODE;
@@ -104,11 +225,14 @@ int tfs_mkfs(char *filename, int nBytes) {
   }
   
   // initialize free block
-  free_blocks fb;
+  free_block fb;
   fb.block_type = FB_CODE;
   fb.magic_num = MAGIC_NUM;
-  fb.rest = {0}; // initialize the rest as 0
-
+  // initialize the rest as 0
+  for (int i = 0; i < REST_OF_INODE; i++)
+  {
+    fb.rest[i] = 0;
+  }
   // fill the rest of the memory as free blocks
   for (fs_idx = 2; fs_idx < (int) (nBytes / BLOCKSIZE) - 1; fs_idx++) {
     // initialize next free block as linked list and write it into file system
@@ -131,6 +255,24 @@ int tfs_mkfs(char *filename, int nBytes) {
 } 
 
 
+
+
+int tfs_unmount(void) {
+  /* unmounts the current file system */
+
+  if (curr_fs_fd < 0)
+  {
+    perror("unmount");
+    return UMOUNT_FAIL;
+  }
+  if (closeDisk(curr_fs_fd) < 0)
+  {
+    return CLOSEDISK_FAIL;
+  }
+  curr_fs_fd = -1;
+  return UNMOUNT_SUCCESS;
+}
+
 //“mounts” a TinyFS file system located within ‘diskname’
 int tfs_mount(char *diskname) {
   int disk_fd;
@@ -147,7 +289,7 @@ int tfs_mount(char *diskname) {
   struct stat buf;
   char TFS_buffer[BLOCKSIZE];
 
-  if (fstat(disk, &buf) < 0) {
+  if (fstat(disk_fd, &buf) < 0) {
     perror("fstat");
     return -1;
   }
@@ -181,22 +323,6 @@ int tfs_mount(char *diskname) {
   curr_fs_fd = disk_fd; //set the curr fd to the one that was just mounted 
 
   return MOUNT_SUCCESS;
-}
-
-int tfs_unmount(void) {
-  /* unmounts the current file system */
-
-  if (curr_fs_fd < 0)
-  {
-    perror("unmount");
-    return UMOUNT_FAIL;
-  }
-  if (closeDisk(curr_fs_fd) < 0)
-  {
-    return CLOSEDISK_FAIL;
-  }
-  curr_fs_fd = -1;
-  return UNMOUNT_SUCCESS;
 }
 
 fileDescriptor tfs_openFile(char *name) {
@@ -303,15 +429,16 @@ int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
   /* Writes buffer ‘buffer’ of size ‘size’, which represents an entire
 file’s content, to the file system.  */
   
-  char size_temp[FILE_SIZE_TEMP] = {'\0'};
-  char first_file_extent[FILE_SIZE_TEMP] = {'\0'};
-  int file_size, file_content_offset, parent_offset;
+  //char size_temp[FILE_SIZE_TEMP] = {'\0'};
+  //char first_file_extent[FILE_SIZE_TEMP] = {'\0'};
+  // int file_size;
+  int file_content_offset, disk_error,next_file_content_offset;
   char curr_filename[FILENAME_SIZE];
 
   // internal buffer to store the read block
   uint8_t TFS_buffer[BLOCKSIZE];
 
-  int file_pointer = file_descriptor_table[FD];
+  file_pointer file_pointer = file_descriptor_table[FD];
   
   // get the inode of file to check next file extent
   if ((disk_error = readBlock(curr_fs_fd, file_pointer.inode_offset, TFS_buffer)) < 0) {
@@ -323,8 +450,7 @@ file’s content, to the file system.  */
   // copy to the current filename buffer
   strcpy(curr_filename, TFS_buffer + 3);
   
-  // get the parent offset
-  parent_offset = convert_str_to_int(TFS_buffer, 44, 47);
+
 
   // free the current content so you restart over
   while (file_content_offset != -1) {
@@ -333,13 +459,13 @@ file’s content, to the file system.  */
       return disk_error;
     }
     // set it to next content offset (if there is any) so you can free that one too
-    file_content_offset = convert_str_to_int(TFS_buffer, 2, 5);
+    next_file_content_offset = convert_str_to_int(TFS_buffer, 2, 5);
     if (set_block_to_free(file_content_offset) < 0) {
       perror("set block to free");
       return -1;
     }
     // will become -1 at the end when you have no next files
-    file_content_offset = convert_str_to_int(TFS_buffer, 40, 43);
+    file_content_offset = next_file_content_offset;
   }
 
   // write and save the first file extent to the inode
@@ -352,7 +478,7 @@ file’s content, to the file system.  */
 
   // create a completely new inode
   inode modified_inode;
-  fill_new_inode_buffer(&modified_inode, FILE_CODE, curr_filename, parent_offset) {
+  fill_new_inode_buffer(&modified_inode, FILE_CODE, curr_filename);
   
   // set the first file extent as the offset of the first free block.
   modified_inode.first_file_extent = free_block_offset;
@@ -360,9 +486,9 @@ file’s content, to the file system.  */
   modified_inode.file_size = size;
 
   // write inode to disk
-  if (writeBlock(FD, file_pointer->inode_offset, &modified_inode) < 0) {
+  if (writeBlock(FD, file_pointer.inode_offset, &modified_inode) < 0) {
     perror("Disk Write");
-    return -1
+    return -1;
   }
 
   // subtract from total to keep track of how much write
@@ -378,7 +504,7 @@ file’s content, to the file system.  */
   int curr_offset = free_block_offset;
 
   // sys call failure so exit
-  if ((head_fe = (file_extent *)malloc(sizeof(writer_node))) < 0) {
+  if ((head_fe = (file_extent *)malloc(sizeof(write_node))) < 0) {
     perror("malloc");
     exit(EXIT_FAILURE);
   }
@@ -393,8 +519,8 @@ file’s content, to the file system.  */
   
   write_node *head_write_node; // keeps the head write_node
   write_node *curr_write_node; // keeps the current write_node
-  write_node *next_write_node; // keeps the next write_node
-
+  //write_node *next_write_node; // keeps the next write_node
+  write_node * temp_write_node; //idk
   if ((curr_write_node = (write_node *)malloc(sizeof(write_node))) < 0) {
     perror("malloc");
     exit(EXIT_FAILURE);
@@ -412,8 +538,8 @@ file’s content, to the file system.  */
   // If there is still more, add it to the end of linked list of file extent
   while (write_size > 0) {
 
-    // sys call failure so exit
-    if ((curr_fe = (file_extent *)malloc(sizeof(writer_node))) < 0) {
+    // sys call failure so exit 
+    if ((curr_fe = (file_extent *)malloc(sizeof(write_node))) < 0) {
       perror("malloc");
       exit(EXIT_FAILURE);
     }
@@ -468,7 +594,7 @@ file’s content, to the file system.  */
     // write content into disk
     if (writeBlock(FD, curr_offset, curr_write_node->curr) < 0) {
       perror("Disk Write");
-      return -1
+      return -1;
     }
 
     curr_offset = curr_write_node->curr->next_fe;
@@ -489,7 +615,7 @@ int tfs_deleteFile(fileDescriptor FD) {
   file_pointer fp_struct = file_descriptor_table[FD];
   
   uint8_t TFS_buffer[BLOCKSIZE];
-
+  int disk_error;
   // get the superblock check for first file content block
   if ((disk_error = readBlock(curr_fs_fd, fp_struct.inode_offset, TFS_buffer)) < 0) {
     return disk_error;
@@ -527,7 +653,7 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
   int curr_fe_offset = curr_file_pointer.curr_file_extent_offset;
 
   // File pointer has already past the end of the file (i.e. > FILE_EXTENT_DATA_LIMIT and no next file extent offset)
-  if (curr_file_pointer - FILE_EXTENT_META_DATA_SIZE > FILE_EXTENT_DATA_LIMIT 
+  if (curr_file_pointer.pointer - FILE_EXTENT_META_DATA_SIZE > FILE_EXTENT_DATA_LIMIT 
       && next_fe_offset == -1) {
     perror("end of file");
     return TFS_EFO;
@@ -581,7 +707,7 @@ int tfs_seek(fileDescriptor FD, int offset) {
   }
 
   int pointer = curr_file_pointer.pointer;
-  pointer = offset % FILE_EXTENT_DATA_LIMIT
+  pointer = offset % FILE_EXTENT_DATA_LIMIT;
   //get curr_file_extent_offset
  
   uint8_t TFS_buffer[BLOCKSIZE];
@@ -635,108 +761,4 @@ time_t tfs_readFileInfo(fileDescriptor FD) {
   }
   //returning creation time
   return (time_t) strtol(time_in_str, NULL, BASE_TEN);
-}
-
-/* ------------------------------------ Util Functions ------------------------------------ */
-
-
-void fill_new_inode_buffer(inode *inode_buffer, int file_type, char *filename, int parent_off) {
-  /* Fills in new inode blocks to write */
-  inode_buffer->block_type = INODE_CODE;
-  inode_buffer->magic_num = MAGIC_NUM;
-  inode_buffer->file_type = file_type;
-  strncpy(inode_buffer->filename, filename, FILENAME_SIZE);
-  inode_buffer->file_size = 0;
-
-  // Get current time as time_t object
-  time_t now = time(NULL);
-  inode_buffer->creation_time = now;
-  inode_buffer->access_time = now;
-  inode_buffer->modification_time = now;
-
-  inode_buffer->first_file_extent = -1;
-  inode_buffer->parent_inode = parent; // initially -1
-  
-  // set all children to -1 (i.e. no children)
-  memset(inode_buffer->child, -1, MAX_CHILD);
-}
-
-
-int convert_str_to_int(char *buffer, int start, int end) {
-  /* Takes as input */
-  int i, j = 0;
-  char int_in_str[SIZE_OF_INT_IN_STR];
-
-  strncpy(int_in_str, buffer+start, SIZE_OF_INT_IN_STR - 1);
-  int_int_str[SIZE_OF_INT_IN_STR] = '\0';
-  // for (i = start; i < end + 1; i++) {
-  //     size_temp[j++] = buffer[i];
-  // }
-  return strtol(int_in_str, NULL, BASE_TEN);
-}
-
-int set_block_to_free(int offset) {
-  /* Uses a stack structure LIFO. Util function to set block to free. */
-
-  free_block fe;
-  fe.block_type = FE_CODE;
-  fe.magic_num = MAGIC_NUM;
-
-    // get the superblock check for first free block
-  if ((disk_error = readBlock(curr_fs_fd, 0, TFS_buffer)) < 0) {
-    return disk_error;
-  }
-
-  /* the next free block in offset  */
-  next_free_block_offset = convert_str_to_int(TFS_buffer, 6, 10);
-
-  fe.next_fb = next_free_block_offset; // set it to first
-  
-    // write content into disk
-  if (writeBlock(curr_fs_fd, offset, fe) < 0) {
-    perror("Disk Write");
-    return -1
-  }
-
-  return 0;
-}
-
-int remove_next_free_and_set_free_after_it() {
-  /* get next free block and set it to the free block after it*/
-  uint8_t TFS_buffer[BLOCKSIZE];
-  unsigned char bytes[4];
-  // get the superblock check for first free block
-  if ((disk_error = readBlock(curr_fs_fd, 0, TFS_buffer)) < 0) {
-    return disk_error;
-  }
-
-  /* the next free block in offset  */
-  next_free_block_offset = convert_str_to_int(TFS_buffer, 6, 9);
-
-  // TODO: finish this 
-  //read the next_free_block, then get it's free block after it
-  if ((disk_error = readBlock(curr_fs_fd, next_free_block_offset, TFS_buffer)) < 0) {
-    return disk_error;
-  }
-  free_block_after_it = convert_str_to_int(TFS_buffer, 2, 5);
-  
-  // get the superblock again
-  if ((disk_error = readBlock(curr_fs_fd, 0, TFS_buffer)) < 0) {
-    return disk_error;
-  }
-  //converting free block after it into char bytes
-  bytes[0] = (free_block_after_it >> 24) & 0xFF;
-  bytes[1] = (free_block_after_it >> 16) & 0xFF;
-  bytes[2] = (free_block_after_it >> 8) & 0xFF;
-  bytes[3] = free_block_after_it & 0xFF;
-  //overwriting chars in next_free_block in TFS buffer
-  for (int i = 0; i < 4; i++)
-  {
-    TFS_buffer[i + 6] = bytes[i];
-  }
-  //writing the buffer back into superblock
-  if ((disk_error = writeBlock(curr_fs_fd, 0, TFS_buffer)) < 0) {
-    return disk_error;
-  }
-  return next_free_block_offset;
 }

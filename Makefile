@@ -1,5 +1,5 @@
-CC = gcc
-CFLAGS = -Wall -g
+CC = gcc 
+CFLAGS = -Wall -g -std=c99
 PROG = tinyFSDemo
 DTEST = diskTest
 
@@ -21,10 +21,10 @@ dTest: $(DOBJS)
 diskTest.o: diskTest.c libDisk.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-tinyFsDemo.o: tinyFSDemo.c libTinyFS.h tinyFS.h TinyFS_errno.h
+tinyFsDemo.o: tinyFSDemo.c tinyFS.h TinyFS_errno.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-libTinyFS.o: libTinyFS.c libTinyFS.h tinyFS.h libDisk.h libDisk.o TinyFS_errno.h
+libTinyFS.o: libTinyFS.c tinyFS.h libDisk.h libDisk.o TinyFS_errno.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 libDisk.o: libDisk.c libDisk.h tinyFS.h TinyFS_errno.h
