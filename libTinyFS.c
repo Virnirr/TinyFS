@@ -387,10 +387,12 @@ fileDescriptor tfs_openFile(char *name) {
   }
 
   char buffer[BLOCKSIZE];
-  int file_fd;
+  int file_fd_idx;
   int logical_disk_offset = 0;
+  file_pointer fp;
+
   // find it with linear probing (assuming it's not a directory right now)
-  while (num_read = read(disk, buffer, BLOCKSIZE) > 0) {
+  while (num_read = read(curr_fs_fd, buffer, BLOCKSIZE) > 0) {
     // if it's an inode and the name matches, then you cache it in open directory file
     if (buffer[BLOCKTYPE_IDX] == INODE_CODE && !strcmp(filename, name)) {
       
@@ -399,6 +401,23 @@ fileDescriptor tfs_openFile(char *name) {
       while (file_descriptor_table[file_fd_idx] != -1) {
         file_fd_idx++;
       }
+      // initialize file pointer and store into file descriptor table
+      fp.inode_offset = logical_disk_offset;
+      
+      // get the file extent and store into file pointer from the buffer
+      fp.curr_file_extent_offset = convert_str_to_int(buffer, 40, 43);
+      fp.pointer = 0;
+      fp.file_size = convert_str_to_int(buffer, 12, 15);
+      fp.next_file_extent_offset = -1 // default for next file extent
+
+      // read the first file extent if there is any and get the next file extent offset from it
+      if (curr_file_extent_offset != -1) {
+        if (readBlock(curr_fs_fd, curr_file_extent_offset, buffer) < 0) {
+          return -1;
+        }
+        fp.next_file_extent_offset = convert_str_to_int(buffer, 40, 43);
+      }
+
       file_descriptor_table[file_fd_idx] = logical_disk_offset;
       break;
     }
