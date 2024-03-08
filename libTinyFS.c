@@ -302,29 +302,29 @@ int tfs_closeFile(fileDescriptor FD) {
 int tfs_writeFile(fileDescriptor FD, char *buffer, int size) {
   /* Writes buffer ‘buffer’ of size ‘size’, which represents an entire
 file’s content, to the file system.  */
-
-
-  file_extent fe;
-  fe.block_type = FE_CODE;
-  fe.magic_num = MAGIC_NUM;
-  fe.next_fe = -1; // signalifying no more bytes
   
-
   char size_temp[FILE_SIZE_TEMP] = {'\0'};
   char first_file_extent[FILE_SIZE_TEMP] = {'\0'};
-  int file_size, file_content_offset;
+  int file_size, file_content_offset, parent_offset;
+  char curr_filename[FILENAME_SIZE];
 
+  // internal buffer to store the read block
   uint8_t TFS_buffer[BLOCKSIZE];
 
-
-  int file_offset = file_descriptor_table[FD];
+  int file_pointer = file_descriptor_table[FD];
   
   // get the inode of file to check next file extent
-  if ((disk_error = readBlock(curr_fs_fd, file_offset, TFS_buffer)) < 0) {
+  if ((disk_error = readBlock(curr_fs_fd, file_pointer.inode_offset, TFS_buffer)) < 0) {
     return disk_error;
   }
 
   file_content_offset = convert_str_to_int(TFS_buffer, 40, 43);
+
+  // copy to the current filename buffer
+  strcpy(curr_filename, TFS_buffer + 3);
+  
+  // get the parent offset
+  parent_offset = convert_str_to_int(TFS_buffer, 44, 47);
 
   // free the current content so you restart over
   while (file_content_offset != -1) {
@@ -344,32 +344,140 @@ file’s content, to the file system.  */
 
   // write and save the first file extent to the inode
   int write_size = size;
-  disk_offset = next_free_block_offset;
-  
-  // copy up to FILE_EXTENT_DATA_LIMIT into fe.data
-  strncpy(fe.data, buffer, FILE_EXTENT_DATA_LIMIT);
+  int free_block_offset = remove_next_free_and_set_free_after_it();
 
-  // subtract from total to keep track of how much write
-  write_size -= FILE_EXTENT_DATA_LIMIT;
-  // go to the next set of bytes to write
-  buffer += FILE_EXTENT_DATA_LIMIT;
+  if (free_block_offset == -1) {
+    return LIMIT_REACHED;
+  }
+
+  // create a completely new inode
+  inode modified_inode;
+  fill_new_inode_buffer(&modified_inode, FILE_CODE, curr_filename, parent_offset) {
   
-  // write content into disk
-  if (writeBlock(FD, disk_offset, fe) < 0) {
+  // set the first file extent as the offset of the first free block.
+  modified_inode.first_file_extent = free_block_offset;
+
+  modified_inode.file_size = size;
+
+  // write inode to disk
+  if (writeBlock(FD, file_pointer->inode_offset, &modified_inode) < 0) {
     perror("Disk Write");
     return -1
   }
+
+  // subtract from total to keep track of how much write
+  write_size -= FILE_EXTENT_DATA_LIMIT;
+
+  // go to the next set of bytes to write
+  buffer += FILE_EXTENT_DATA_LIMIT;
+
+  file_extent *head_fe;
+  file_extent *curr_fe;
+  file_extent *prev_fe;
+
+  int curr_offset = free_block_offset;
+
+  // sys call failure so exit
+  if ((head_fe = (file_extent *)malloc(sizeof(writer_node))) < 0) {
+    perror("malloc");
+    exit(EXIT_FAILURE);
+  }
+
+  head_fe -> block_type = FE_CODE;
+  head_fe -> magic_num = MAGIC_NUM;
+  head_fe -> next_fe = -1;
+
+  // set prev_fe initially to head
+  prev_fe = head_fe;
+  curr_fe = head_fe;
   
+  write_node *head_write_node; // keeps the head write_node
+  write_node *curr_write_node; // keeps the current write_node
+  write_node *next_write_node; // keeps the next write_node
+
+  if ((curr_write_node = (write_node *)malloc(sizeof(write_node))) < 0) {
+    perror("malloc");
+    exit(EXIT_FAILURE);
+  }
+
+  curr_write_node -> curr = head_fe;
+  curr_write_node -> next = NULL;
+
+  // head set to the first write_node
+  head_write_node = curr_write_node;
+
+  // copy up to FILE_EXTENT_DATA_LIMIT into fe.data
+  strncpy(head_fe -> data, buffer, FILE_EXTENT_DATA_LIMIT);
+
   // If there is still more, add it to the end of linked list of file extent
   while (write_size > 0) {
 
+    // sys call failure so exit
+    if ((curr_fe = (file_extent *)malloc(sizeof(writer_node))) < 0) {
+      perror("malloc");
+      exit(EXIT_FAILURE);
+    }
+    
+    curr_fe -> block_type = FE_CODE;
+    curr_fe -> magic_num = MAGIC_NUM;
+    curr_fe -> next_fe = -1;
+
+    // get new free file extente
+    free_block_offset = remove_next_free_and_set_free_after_it();
+
+    if (free_block_offset < 0) {
+      return LIMIT_REACHED;
+    }
+
+    // set previous file extent pointer to point to new one
+    prev_fe -> next_fe = free_block_offset;
+
+    // set previous file extent pointer to the current
+    prev_fe = curr_fe;
+
+    // create a linked list of write nodes for later
+    if ((temp_write_node = (write_node *)malloc(sizeof(write_node))) < 0) {
+      perror("malloc");
+      exit(EXIT_FAILURE);
+    }
+
+    // temp is current node being added
+    temp_write_node -> curr = curr_fe;
+    temp_write_node -> next = NULL;
+
+    // set the current node to temp and set it as temp for next loop
+    curr_write_node -> next = temp_write_node;
+    curr_write_node = temp_write_node; 
+
     // copy up to FILE_EXTENT_DATA_LIMIT into fe.data
-    strncpy(fe.data, buffer, FILE_EXTENT_DATA_LIMIT);
+    strncpy(curr_fe -> data, buffer, FILE_EXTENT_DATA_LIMIT);
 
     // subtract from total to keep track of how much write
     write_size -= FILE_EXTENT_DATA_LIMIT;
+
     // go to the next set of bytes to write
     buffer += FILE_EXTENT_DATA_LIMIT;
+  }
+  
+  write_node *write_node_to_free;
+  curr_write_node = head_write_node;
+  
+  // while head_write_node is not NULL, write all block and free everything
+  while (curr_write_node) {
+    
+    // write content into disk
+    if (writeBlock(FD, curr_offset, curr_write_node->curr) < 0) {
+      perror("Disk Write");
+      return -1
+    }
+
+    curr_offset = curr_write_node->curr->next_fe;
+
+    // free everything
+    write_node_to_free = curr_write_node;
+    curr_write_node = curr_write_node -> next; // write next block
+    free(write_node_to_free->curr);
+    free(write_node_to_free);
   }
 
   return 0;
@@ -532,7 +640,7 @@ time_t tfs_readFileInfo(fileDescriptor FD) {
 /* ------------------------------------ Util Functions ------------------------------------ */
 
 
-void fill_new_inode_buffer(inode *inode_buffer, int file_type, char *filename) {
+void fill_new_inode_buffer(inode *inode_buffer, int file_type, char *filename, int parent_off) {
   /* Fills in new inode blocks to write */
   inode_buffer->block_type = INODE_CODE;
   inode_buffer->magic_num = MAGIC_NUM;
@@ -547,7 +655,7 @@ void fill_new_inode_buffer(inode *inode_buffer, int file_type, char *filename) {
   inode_buffer->modification_time = now;
 
   inode_buffer->first_file_extent = -1;
-  inode_buffer->parent_inode = -1;
+  inode_buffer->parent_inode = parent; // initially -1
   
   // set all children to -1 (i.e. no children)
   memset(inode_buffer->child, -1, MAX_CHILD);

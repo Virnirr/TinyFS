@@ -23,3 +23,5 @@
 #define READBLOCK_FAIL -12
 #define OFFSET_FAIL -13 //seek offset isn't valid
 #define CLOSEDISK_FAIL -14 //seek offset isn't valid
+
+#define LIMIT_REACHED -15

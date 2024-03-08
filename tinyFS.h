@@ -136,3 +136,8 @@ typedef struct file_pointer {
   int  pointer;                  // how mcuh to offset from the current file data
   int  file_size;
 } file_pointer;
+
+typedef struct write_node {
+  file_extent* curr;
+  write_node* next;
+} write_node;
