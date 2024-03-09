@@ -7,14 +7,13 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <time.h>
+
 #define BLOCKTYPE_IDX 0
 #define MAGIC_IDX 1
 #define NEXT_ADDR_IDX 2
 #define EMPTY_IDX 3
 #define EXIT_FAILURE 1
 
-#define ROOT_ADDRESS_IDX 1
-#define NEXT_FREE_BLOCK_IDX 2
 
 /*
   Note: table[open_file_idx] = offset_in_tinyFS
@@ -346,18 +345,26 @@ fileDescriptor tfs_openFile(char *name) {
   char TFS_buffer[BLOCKSIZE];
   char filename_buffer[FILENAME_SIZE];
 
+  if (curr_fs_fd < 0) {
+    return NO_DISK;
+  }
+  
+  if (!name || strlen(name) > FILENAME_SIZE - 1) {
+    return NOT_A_FILE_SYSTEM;
+  }
+
   // check all the filedescriptor table to see if you can find the filename containing "name"
   for (fd_table_idx = 0; fd_table_idx < FILE_DESCRIPTOR_LIMIT; fd_table_idx++) {
     // if the fd_table_idx is not NULL, check to see if the inode filename matches parameter name.
     // if it does, return that file descriptor since it's already opened.
 
-    // save the first null file descriptor table index for later when creating new file
-    // so you don't have to loop twice.
+    // // save the first null file descriptor table index for later when creating new file
+    // // so you don't have to loop twice.
     if (first_null_fd_idx == -1 && file_descriptor_table[fd_table_idx].pointer == -1) {
       first_null_fd_idx = fd_table_idx;
     }
 
-
+    // if the fd_table_idx 's pointer != -1, check if it's the opened file is "name"
     if (file_descriptor_table[fd_table_idx].pointer != -1) {
 
       curr_fd_table_pointer = file_descriptor_table[fd_table_idx];
@@ -380,17 +387,8 @@ fileDescriptor tfs_openFile(char *name) {
 
   // if you are unable to find it, then find an empty space and allocate file pointer for "name" and write to it.
 
-  // create new inode
-  inode new_file_inode;
-  fill_new_inode_buffer(&new_file_inode, FILE_CODE, name);
-
-  // file is open and exist in file descriptor table
-  // if (file_descriptor_table[fd_idx] != NULL) {
-  //   return file_descriptor_table[fd_idx];
-  // }
-
   int num_read;
-  /* rest read pointer */
+  /* read from start */
   if (lseek(curr_fs_fd, 0, SEEK_SET) == -1) {
       perror("lseek");
       exit(EXIT_FAILURE);
@@ -401,22 +399,22 @@ fileDescriptor tfs_openFile(char *name) {
   int logical_disk_offset = 0;
   file_pointer fp;
 
-  // find it with linear probing (assuming it's not a directory right now)
+  // find it with linear probing (assuming it's not a directory)
   while ((num_read = read(curr_fs_fd, buffer, BLOCKSIZE)) > 0) {
     // if it's an inode and the name matches, then you cache it in open directory file
     if (buffer[BLOCKTYPE_IDX] == INODE_CODE && !strcmp(filename_buffer, name)) {
       
       // find a location that exist and set that location as the logical disk offset.
       // file_fd_idx = hash(name); do linear probe instead
-      while (file_descriptor_table[file_fd_idx].pointer != -1) {
-        file_fd_idx++;
-      }
+      // while (file_descriptor_table[file_fd_idx].pointer != -1) {
+      //   file_fd_idx++;
+      // }
       // initialize file pointer and store into file descriptor table
       fp.inode_offset = logical_disk_offset;
       
       // get the file extent and store into file pointer from the buffer
       fp.curr_file_extent_offset = convert_str_to_int(buffer, 40, 43);
-      fp.pointer = 0;
+      fp.pointer = 0; // where the first data is pointed at in the file extent
       fp.file_size = convert_str_to_int(buffer, 12, 15);
       fp.next_file_extent_offset = -1; // default for next file extent
 
@@ -429,8 +427,7 @@ fileDescriptor tfs_openFile(char *name) {
       }
 
       // store fp into global file descriptor table
-      fp.inode_offset = logical_disk_offset;
-      file_descriptor_table[file_fd_idx] = fp;
+      file_descriptor_table[first_null_fd_idx] = fp;
       break;
     }
     logical_disk_offset++;
@@ -439,6 +436,32 @@ fileDescriptor tfs_openFile(char *name) {
     perror("read");
     return -1;
   }
+
+  // fill new_inode if it's not found
+  int first_free_space;
+  inode new_file_inode;
+  // if it's a new name, then create a new inode and place it onto the first free space
+  if ((file_descriptor_table[first_null_fd_idx].pointer) == -1) {
+    // printf("came here to fill new file\n");
+    first_free_space = remove_next_free_and_set_free_after_it();
+    // fill new_inode if it's not found
+    fill_new_inode_buffer(&new_file_inode, FILE_CODE, name);
+    
+    if (writeBlock(curr_fs_fd, first_free_space, &new_file_inode) < 0) {
+      return EOPENFILE;
+    }
+    fp.inode_offset = first_free_space;
+    fp.pointer = 0; // where the first data is pointed at in the file extent
+    fp.file_size = 0; // 0, since creating a new file
+    fp.next_file_extent_offset = -1; // default for next file extent
+    fp.curr_file_extent_offset = -1; // default for current file extent
+
+    printf("%d\n", fp.inode_offset);
+
+    file_descriptor_table[first_null_fd_idx] = fp;
+  }
+
+  printf("this is the inode: %d\n",fp.inode_offset);
   return fp.inode_offset;
 }
 

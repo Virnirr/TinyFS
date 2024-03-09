@@ -32,3 +32,4 @@ libDisk.o: libDisk.c libDisk.h tinyFS.h TinyFS_errno.h
 
 clean:	
 	rm -f $(OBJS) *~ TAGS
+	rm disk1 disk2

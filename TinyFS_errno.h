@@ -3,11 +3,11 @@
 #define ENOENT -1 // no such file or directory
 
 #define OPENDISKERROR -2 // file exist
-#define EFAULT -3 // bad address
+#define NO_DISK -3 // bad address
 
 #define EBADF -4 // bad file descriptor
 
-#define TFS_EFO -5;
+#define TFS_EFO -5 
 
 #define EROFS -5 // read-only filesystem
 #define EWOFS -6 // write-only filesystem
@@ -25,3 +25,5 @@
 #define CLOSEDISK_FAIL -14 //seek offset isn't valid
 
 #define LIMIT_REACHED -15
+
+#define EOPENFILE -16

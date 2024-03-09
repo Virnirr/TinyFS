@@ -10,6 +10,9 @@ possible values */
 #define DEFAULT_DISK_NAME “tinyFSDisk”
 #define META_DATA_SIZE 4
 
+// index
+#define NEXT_FREE_BLOCK_IDX 2
+#define ROOT_ADDRESS_IDX 1
 
 // block type codes
 #define SB_CODE 1
