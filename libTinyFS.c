@@ -235,7 +235,7 @@ int tfs_mkfs(char *filename, int nBytes) {
   fb.magic_num = MAGIC_NUM;
 
   // initialize the rest as 0
-  for (int i = 0; i < REST_OF_INODE; i++)
+  for (int i = 0; i < FILE_EXTENT_DATA_LIMIT; i++)
   {
     fb.rest[i] = 0;
   }
@@ -250,7 +250,7 @@ int tfs_mkfs(char *filename, int nBytes) {
     }
   }
   
-  if (fs_idx > 2) {
+  if ((int) (nBytes / BLOCKSIZE) > 2) {
     // last free block points to -1
     fb.next_fb = -1;
     if ((disk_error = writeBlock(disk_fd, fs_idx, &fb)) < 0) {

@@ -6,7 +6,8 @@
 #include "TinyFS_errno.h"
 
 void test_openDisk(char*filename, int nBytes);
-
+void test_mount(char * diskname);
+void test_unmount();
 int main() {
 
   printf("Hello World!\n");
@@ -18,11 +19,20 @@ int main() {
   test_openDisk("filename", 10);
 
   // file created
-  test_openDisk("filename", BLOCKSIZE * 2);
-
+  test_openDisk("disk1", BLOCKSIZE * 4);
+  test_openDisk("disk2", BLOCKSIZE * 4);
+  test_mount("disk1");
+  test_mount("disk2");
+  test_unmount();
   return 0;
 }
 
+void test_mount(char * diskname){
+  assert(tfs_mount(diskname) == MOUNT_SUCCESS);
+}
+void test_unmount(){
+  assert(tfs_unmount() == UNMOUNT_SUCCESS);
+}
 void test_openDisk(char*filename, int nBytes) {
   // too small error
   if ((int) (nBytes / BLOCKSIZE) < 2) {

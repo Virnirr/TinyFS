@@ -40,7 +40,7 @@ possible values */
 #define FILE_EXTENT_META_DATA_SIZE 6
 
 
-#define ROOT_POS 2
+#define ROOT_POS 1
 #define SIZE_OF_INT_IN_STR sizeof(int) + 1
 #define SIZE_OF_TIME_T_IN_STR sizeof(time_t) + 1
 
@@ -50,7 +50,7 @@ possible values */
 typedef int fileDescriptor;
 
 /* stores the superblock content block */
-typedef struct superblock {
+typedef struct __attribute__((__packed__)) superblock {
   char   block_type;               /* byte 0 */
   char   magic_num;                /* byte 1 */
   int    address_of_root;          /* byte 2-5*/
@@ -60,7 +60,7 @@ typedef struct superblock {
 
 
 /* stores the inode content block */
-typedef struct inode {
+typedef struct __attribute__((__packed__)) inode {
   char   block_type;               /* byte 0 */
   char   magic_num;                /* byte 1 */
   char   file_type;                /* byte 2 */
@@ -74,7 +74,7 @@ typedef struct inode {
 } inode;
 
 /* stores the file extent content block */
-typedef struct file_extent {
+typedef struct __attribute__((__packed__)) file_extent {
   char   block_type;                 /* byte 0 */
   char   magic_num;                  /* byte 1 */
   int    next_fe;                    /* byte 2-5 */
@@ -82,14 +82,14 @@ typedef struct file_extent {
 } file_extent;
 
 /* stores the free_block content block */
-typedef struct free_block {
+typedef struct __attribute__((__packed__)) free_block {
   char block_type;      /* byte 0 */
   char magic_num;       /* byte 1 */
   int  next_fb;         /* byte 2-5 Note: -1, if end of file */ 
   char rest[250];        /* byte 6-255 is \0 bytes */
 } free_block;
 
-typedef struct file_pointer {
+typedef struct __attribute__((__packed__)) file_pointer {
   int  inode_offset;             // check the inode for this file
   int  curr_file_extent_offset;  // current file extent offset
   int  next_file_extent_offset;  // get the next file extent offset
@@ -97,7 +97,7 @@ typedef struct file_pointer {
   int  file_size;
 } file_pointer;
 
-typedef struct write_node {
+typedef struct __attribute__((__packed__)) write_node {
   file_extent* curr;
   struct write_node* next;
 } write_node;
