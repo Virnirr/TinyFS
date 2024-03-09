@@ -35,7 +35,12 @@ void fill_new_inode_buffer(inode *inode_buffer, int file_type, char *filename) {
   inode_buffer->block_type = INODE_CODE;
   inode_buffer->magic_num = MAGIC_NUM;
   inode_buffer->file_type = file_type;
-  strncpy(inode_buffer->filename, filename, FILENAME_SIZE);
+  if (filename == NULL) {
+    strncpy(inode_buffer->filename, "filename", FILENAME_SIZE);
+  }
+  else {
+    strncpy(inode_buffer->filename, filename, FILENAME_SIZE);
+  }
   inode_buffer->file_size = 0;
 
   // Get current time as time_t object
@@ -172,6 +177,7 @@ int tfs_mkfs(char *filename, int nBytes) {
   }
 
   if (strlen(filename) > FILENAME_SIZE) {
+    perror("Filename Too Big");
     return OPENDISKERROR;
   }
   
@@ -195,12 +201,16 @@ int tfs_mkfs(char *filename, int nBytes) {
   if (disk_fd < 0) {
     return -1;
   }
+
+
   
   // write superblock into first block of file system
   if ((disk_error = writeBlock(disk_fd, 0, &sb)) < 0) {
     perror("write block");
     return disk_error;
   }
+
+
   // write the root inode into the second block in TinyFS
   inode root;
   fill_new_inode_buffer(&root, DIR_CODE, NULL); // only root will have filename = NULL
@@ -216,16 +226,20 @@ int tfs_mkfs(char *filename, int nBytes) {
     perror("write block");
     return disk_error;
   }
+
+
   
   // initialize free block
   free_block fb;
   fb.block_type = FB_CODE;
   fb.magic_num = MAGIC_NUM;
+
   // initialize the rest as 0
   for (int i = 0; i < REST_OF_INODE; i++)
   {
     fb.rest[i] = 0;
   }
+
   // fill the rest of the memory as free blocks
   for (fs_idx = 2; fs_idx < (int) (nBytes / BLOCKSIZE) - 1; fs_idx++) {
     // initialize next free block as linked list and write it into file system
@@ -235,14 +249,17 @@ int tfs_mkfs(char *filename, int nBytes) {
       return disk_error;
     }
   }
-
-  // last free block points to -1
-  fb.next_fb = -1;
-  if ((disk_error = writeBlock(disk_fd, fs_idx, &fb)) < 0) {
-    perror("write block");
-    return disk_error;
+  
+  if (fs_idx > 2) {
+    // last free block points to -1
+    fb.next_fb = -1;
+    if ((disk_error = writeBlock(disk_fd, fs_idx, &fb)) < 0) {
+      perror("write block");
+      return disk_error;
+    }
   }
 
+  
   // return 0 on success
   return 0;
 } 

@@ -5,7 +5,7 @@ DTEST = diskTest
 
 DOBJS = libDisk.o
 
-OBJS = tinyFSDemo.o libTinyFS.o libDisk.o
+OBJS = tinyFSDemo.o libTinyFS.o libDisk.o 
 
 $(PROG): $(OBJS)
 	$(CC) $(CFLAGS) -o $(PROG) $(OBJS)

@@ -5,6 +5,10 @@ implement it using many of the algorithms and primitives you’ve learned throug
 TinyFS does not support a hierarchical namespace, i.e. there are no directories beyond the root
 directory, and all the files are in a flat namespace. 
 
+# Get how big a filesize is:
+```console
+stat -c %s <path>
+```
 
 # How to test libDisk.c
 

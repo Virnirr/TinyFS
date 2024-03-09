@@ -11,7 +11,14 @@ int main() {
 
   printf("Hello World!\n");
 
+  // name to big
   test_openDisk("this_is_too_long_of_name", BLOCKSIZE * 3);
+
+  // nByte too small 
+  test_openDisk("filename", 10);
+
+  // file created
+  test_openDisk("filename", BLOCKSIZE * 2);
 
   return 0;
 }
@@ -29,6 +36,6 @@ void test_openDisk(char*filename, int nBytes) {
 
   // make sure that otherwise, it's a valid file descriptor that you opened
   else {
-    assert(tfs_mkfs(filename, nBytes) > 0);
+    assert(tfs_mkfs(filename, nBytes) == 0);
   }
 }
