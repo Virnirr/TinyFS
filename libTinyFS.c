@@ -59,7 +59,17 @@ int convert_str_to_int(char *buffer, int start, int end) {
   /* Takes as input */
   char int_in_str[SIZE_OF_INT_IN_STR];
 
-  strncpy(int_in_str, buffer+start, SIZE_OF_INT_IN_STR - 1);
+
+  // checking for endianess
+  long x = 0x44434241;
+  char *y = (char *) &x;
+
+  if(strncmp(y,"ABCD",4)){
+    printf("Big Endian\n");
+  }else{
+    strncpy(int_in_str, buffer+start, SIZE_OF_INT_IN_STR - 1);
+  }
+
   int_in_str[SIZE_OF_INT_IN_STR] = '\0';
   // for (i = start; i < end + 1; i++) {
   //     size_temp[j++] = buffer[i];
@@ -121,6 +131,7 @@ int remove_next_free_and_set_free_after_it() {
     return disk_error;
   }
   free_block_after_it = convert_str_to_int(TFS_buffer, 2, 5);
+
   
   // get the superblock again
   if ((disk_error = readBlock(curr_fs_fd, 0, TFS_buffer)) < 0) {
@@ -131,6 +142,7 @@ int remove_next_free_and_set_free_after_it() {
   bytes[1] = (free_block_after_it >> 16) & 0xFF;
   bytes[2] = (free_block_after_it >> 8) & 0xFF;
   bytes[3] = free_block_after_it & 0xFF;
+
   //overwriting chars in next_free_block in TFS buffer
   for (int i = 0; i < 4; i++)
   {
@@ -140,6 +152,8 @@ int remove_next_free_and_set_free_after_it() {
   if ((disk_error = writeBlock(curr_fs_fd, 0, TFS_buffer)) < 0) {
     return disk_error;
   }
+
+  printf("this is the bruh %d and this is byte %s\n", next_free_block_offset, bytes);
   return next_free_block_offset;
 }
 
@@ -188,7 +202,7 @@ int tfs_mkfs(char *filename, int nBytes) {
   sb.next_free_block = NEXT_FREE_BLOCK_IDX; // starts at 2
 
   // initialize the rest as 0
-  for (int i = 0; i < REST_OF_INODE; i++)
+  for (int i = 0; i < 246; i++)
   {
     sb.rest[i] = 0;
   }
@@ -202,12 +216,25 @@ int tfs_mkfs(char *filename, int nBytes) {
   }
 
 
-  
+  char buffer[BLOCKSIZE];
   // write superblock into first block of file system
   if ((disk_error = writeBlock(disk_fd, 0, &sb)) < 0) {
     perror("write block");
     return disk_error;
   }
+
+    // write superblock into first block of file system
+  if ((disk_error = readBlock(disk_fd, 0, buffer)) < 0) {
+    perror("write block");
+    return disk_error;
+  }
+
+  int i;
+  for(i = 0; i < BLOCKSIZE; i++)
+      printf("%x ", buffer[i]);
+
+  printf("\nend super block\n");
+
 
 
   // write the root inode into the second block in TinyFS
