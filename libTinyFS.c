@@ -20,11 +20,12 @@
   Note: table[open_file_idx] = offset_in_tinyFS
   < 0 : File Descriptor not opened.
 */
-file_pointer file_descriptor_table[FILE_DESCRIPTOR_LIMIT] = {NULL};
+//when pointer = -1, treat it as null
+file_pointer file_descriptor_table[FILE_DESCRIPTOR_LIMIT];
 
 int curr_fs_fd;
 int disk_error;
-
+int is_fd_table_unpopulated = 1;
 
 /* ------------------------------------ Util Functions ------------------------------------ */
 
@@ -147,6 +148,18 @@ int tfs_mkfs(char *filename, int nBytes) {
     Makes a blank TinyFS file system of size nBytes and mount it onto
     the unix "filename" file. 
   */
+ //populates fd table if called for the first time
+  file_pointer temp_pointer;
+  if (is_fd_table_unpopulated){
+    for(int i = 0; i < FILE_DESCRIPTOR_LIMIT; i++){
+      temp_pointer.inode_offset = -1;
+      temp_pointer.curr_file_extent_offset = -1;
+      temp_pointer.next_file_extent_offset = -1;
+      temp_pointer.pointer = -1;
+      temp_pointer.file_size = -1;
+      file_descriptor_table[i] = temp_pointer;
+    }
+  }
   int disk_error;
   // Maximum number of blocks: 2,147,483,647
   // Max storage: 2,147,483,647 blocks * 256 bytes =  550 GBs
@@ -331,7 +344,7 @@ fileDescriptor tfs_openFile(char *name) {
   int fd_table_idx;
   file_pointer curr_fd_table_pointer;
   int logical_offset;
-  int first_null_fd_idx = NULL;
+  int first_null_fd_idx = -1;
 
   uint8_t TFS_buffer[BLOCKSIZE];
   char filename_buffer[FILENAME_SIZE];
@@ -343,12 +356,12 @@ fileDescriptor tfs_openFile(char *name) {
 
     // save the first null file descriptor table index for later when creating new file
     // so you don't have to loop twice.
-    if (first_null_fd_idx == NULL && file_descriptor_table[fd_table_idx] == NULL) {
+    if (first_null_fd_idx == -1 && file_descriptor_table[fd_table_idx].pointer == -1) {
       first_null_fd_idx = fd_table_idx;
     }
 
 
-    if (file_descriptor_table[fd_table_idx] != NULL) {
+    if (file_descriptor_table[fd_table_idx].pointer != -1) {
 
       curr_fd_table_pointer = file_descriptor_table[fd_table_idx];
       logical_offset = curr_fd_table_pointer.inode_offset;
@@ -381,7 +394,7 @@ fileDescriptor tfs_openFile(char *name) {
 
   int num_read;
   /* rest read pointer */
-  if (lseek(in_fd, 0, SEEK_SET) == -1) {
+  if (lseek(curr_fs_fd, 0, SEEK_SET) == -1) {
       perror("lseek");
       exit(EXIT_FAILURE);
   }
@@ -394,11 +407,11 @@ fileDescriptor tfs_openFile(char *name) {
   // find it with linear probing (assuming it's not a directory right now)
   while (num_read = read(curr_fs_fd, buffer, BLOCKSIZE) > 0) {
     // if it's an inode and the name matches, then you cache it in open directory file
-    if (buffer[BLOCKTYPE_IDX] == INODE_CODE && !strcmp(filename, name)) {
+    if (buffer[BLOCKTYPE_IDX] == INODE_CODE && !strcmp(filename_buffer, name)) {
       
       // find a location that exist and set that location as the logical disk offset.
       // file_fd_idx = hash(name); do linear probe instead
-      while (file_descriptor_table[file_fd_idx] != -1) {
+      while (file_descriptor_table[file_fd_idx].pointer != -1) {
         file_fd_idx++;
       }
       // initialize file pointer and store into file descriptor table
@@ -408,17 +421,17 @@ fileDescriptor tfs_openFile(char *name) {
       fp.curr_file_extent_offset = convert_str_to_int(buffer, 40, 43);
       fp.pointer = 0;
       fp.file_size = convert_str_to_int(buffer, 12, 15);
-      fp.next_file_extent_offset = -1 // default for next file extent
+      fp.next_file_extent_offset = -1; // default for next file extent
 
       // read the first file extent if there is any and get the next file extent offset from it
-      if (curr_file_extent_offset != -1) {
-        if (readBlock(curr_fs_fd, curr_file_extent_offset, buffer) < 0) {
+      if (fp.curr_file_extent_offset != -1) {
+        if (readBlock(curr_fs_fd, fp.curr_file_extent_offset, buffer) < 0) {
           return -1;
         }
         fp.next_file_extent_offset = convert_str_to_int(buffer, 40, 43);
       }
 
-      file_descriptor_table[file_fd_idx] = logical_disk_offset;
+      file_descriptor_table[file_fd_idx].inode_offset = logical_disk_offset;
       break;
     }
     logical_disk_offset++;
@@ -435,11 +448,11 @@ int tfs_closeFile(fileDescriptor FD) {
   /* Closes the file, de-allocates all system resources, 
      and removes table entry) */
   
-  if (file_descriptor_table[FD] == -1) {
+  if (file_descriptor_table[FD].pointer == -1) {
     return EBADF;
   }
   
-  file_descriptor_table[FD] = NULL;
+  file_descriptor_table[FD].pointer = -1;
 
   return 0;
 }
@@ -694,7 +707,7 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
 
   // end of data block for file pointer and there's still a data block, 
   // change curr_file_extent_offset and next_file_extent_offset
-  if (curr_file_pointer - FILE_EXTENT_META_DATA_SIZE > FILE_EXTENT_DATA_LIMIT) {
+  if (curr_file_pointer.pointer - FILE_EXTENT_META_DATA_SIZE > FILE_EXTENT_DATA_LIMIT) {
     if (next_fe_offset != -1){
       int disk_error;
         if ((disk_error = readBlock(curr_fs_fd, next_fe_offset, TFS_buffer)) < 0) {
@@ -714,7 +727,7 @@ int tfs_seek(fileDescriptor FD, int offset) {
 
   file_pointer curr_file_pointer = file_descriptor_table[FD];
   // if fd doesn't exist
-  if (curr_file_pointer == NULL)
+  if (curr_file_pointer.pointer == -1)
   {
     perror("unopened file");
     return EBADF;
@@ -758,7 +771,7 @@ int tfs_seek(fileDescriptor FD, int offset) {
 time_t tfs_readFileInfo(fileDescriptor FD) {
   file_pointer fd_file_pointer = file_descriptor_table[FD];
 // if fd doesn't exist
-  if (fd_file_pointer == NULL)
+  if (fd_file_pointer.pointer == -1)
   {
     perror("unopened file");
     return EBADF;
