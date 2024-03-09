@@ -166,7 +166,6 @@ int tfs_mkfs(char *filename, int nBytes) {
     return EMAX_INT; // returns -7
   }
 
-  // ? seems like need more than 2 blocks with root
   if ((int) (nBytes / BLOCKSIZE) < 2) {
     perror("Too Small");
     return EMINLIMIT;
@@ -178,19 +177,20 @@ int tfs_mkfs(char *filename, int nBytes) {
   sb.magic_num = MAGIC_NUM;
   sb.address_of_root = ROOT_ADDRESS_IDX; // setting as 1 since logical offset 1
   sb.next_free_block = NEXT_FREE_BLOCK_IDX; // starts at 2
-  // ? later create root inode and root fe, so should be 4
+
   // initialize the rest as 0
-  // ? this isn't filling full sb, only 212 bytes, also unnecessary because initialized as \0
   for (int i = 0; i < REST_OF_INODE; i++)
   {
     sb.rest[i] = 0;
   }
-  // initializing free blocks;
-  //free_block fb;
+
 
   // open new filename
-  
   int disk_fd = curr_fs_fd = openDisk(filename, nBytes);
+  
+  if (disk_fd < 0) {
+    return -1;
+  }
   
   // write superblock into first block of file system
   if ((disk_error = writeBlock(disk_fd, 0, &sb)) < 0) {
@@ -200,41 +200,14 @@ int tfs_mkfs(char *filename, int nBytes) {
   // write the root inode into the second block in TinyFS
   inode root;
   fill_new_inode_buffer(&root, DIR_CODE, NULL); // only root will have filename = NULL
-  // root.block_type = INODE_CODE;
-  // root.magic_num = MAGIC_NUM;
-  // root.file_type = DIR_CODE;
-  // root.file_size = 0; // directory has file size of 0
 
-  // Get current time as time_t object
-  // time_t now = time(NULL);
-  // root.creation_time = now;
-  // root.access_time = now;
-  // root.modification_time = now;
-  root.first_file_extent = ROOT_POS; // position of where to find the child directories in hierachical
-  // set filename to NULL for root nodes
-  // memset(root.filename, '\0', FILENAME_SIZE);
-  // copy "/" into prefix and append with rest with NULL or \0
-  // strncpy(root.prefix, "/", PREFIX_SIZE);
+
+  root.first_file_extent = ROOT_POS;
   
-  // ? you have comment of 1, but root_pos is actually 2, so you're writing the root inode block into the 3rd block
   // even though in sb you have address_of_root = 1
   int fs_idx = ROOT_POS; // 1
   
   // write the root block into TinyFS
-  if ((disk_error = writeBlock(disk_fd, fs_idx, &root)) < 0) {
-    perror("write block");
-    return disk_error;
-  }
-  
-  // // This file extent for directory will store all the root child's index position in the TinyFS
-  // file_extent fe;
-  // fe.block_type = FE_CODE;
-  // fe.magic_num = MAGIC_NUM;
-  // fe.next_fe = -1;
-  // // set the data to all NULL
-  // memset(fe.data, '\0', FILE_EXTENT_DATA_LIMIT);
-  // ? need to update fs_idx from 1 to 2
-  // write root block's file extent into TinyFS
   if ((disk_error = writeBlock(disk_fd, fs_idx, &root)) < 0) {
     perror("write block");
     return disk_error;
@@ -245,13 +218,11 @@ int tfs_mkfs(char *filename, int nBytes) {
   fb.block_type = FB_CODE;
   fb.magic_num = MAGIC_NUM;
   // initialize the rest as 0
-  // ? again, unnecessary
   for (int i = 0; i < REST_OF_INODE; i++)
   {
     fb.rest[i] = 0;
   }
   // fill the rest of the memory as free blocks
-  // ? fs_idx should start at 3
   for (fs_idx = 2; fs_idx < (int) (nBytes / BLOCKSIZE) - 1; fs_idx++) {
     // initialize next free block as linked list and write it into file system
     fb.next_fb = fs_idx + 1;
@@ -433,12 +404,12 @@ fileDescriptor tfs_openFile(char *name) {
         if (readBlock(curr_fs_fd, fp.curr_file_extent_offset, buffer) < 0) {
           return -1;
         }
-        // ? its not an inode, but a file extent, so it should be 2, 5
-        fp.next_file_extent_offset = convert_str_to_int(buffer, 40, 43);
+        fp.next_file_extent_offset = convert_str_to_int(buffer, 2, 5);
       }
-      // ? you never store the fp in the table, I think that should be done here rather than this
-      // I think it's better to store directly like this than have a local file_pointer since you would have to malloc
-      file_descriptor_table[file_fd_idx].inode_offset = logical_disk_offset;
+
+      // store fp into global file descriptor table
+      fp.inode_offset = logical_disk_offset;
+      file_descriptor_table[file_fd_idx] = fp;
       break;
     }
     logical_disk_offset++;
@@ -447,8 +418,7 @@ fileDescriptor tfs_openFile(char *name) {
     perror("read");
     return -1;
   }
-  // ? its supposed to return a fd, not 0
-  return 0;
+  return fp.inode_offset;
 }
 
 int tfs_closeFile(fileDescriptor FD) {
@@ -458,7 +428,8 @@ int tfs_closeFile(fileDescriptor FD) {
   if (file_descriptor_table[FD].pointer == -1) {
     return EBADF;
   }
-  // ? free the file pointer if you decide to malloc, this is fine otherwise
+
+  // place holder for telling if a file descriptor table entry is empty
   file_descriptor_table[FD].pointer = -1;
 
   return 0;
@@ -493,8 +464,8 @@ file’s content, to the file system.  */
 
   // free the current content so you restart over
   while (file_content_offset != -1) {
-    // get the superblock check for first free block
-    // ? file_content_offset is set to the first file extent, not superblock (guessing comment is wrong)
+
+    // get file content of the file descriptor and initialize the values of TFS_buffer with the given block
     if ((disk_error = readBlock(curr_fs_fd, file_content_offset, TFS_buffer)) < 0) {
       return disk_error;
     }
@@ -509,7 +480,6 @@ file’s content, to the file system.  */
   }
 
   // write and save the first file extent to the inode
-  // ? stopped here
   int write_size = size;
   int free_block_offset = remove_next_free_and_set_free_after_it();
 
