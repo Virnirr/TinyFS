@@ -70,7 +70,7 @@ int set_block_to_free(int offset) {
   fe.magic_num = MAGIC_NUM;
   int disk_error;
   int next_free_block_offset;
-  uint8_t TFS_buffer[BLOCKSIZE];
+  char TFS_buffer[BLOCKSIZE];
     // get the superblock check for first free block
   if ((disk_error = readBlock(curr_fs_fd, 0, TFS_buffer)) < 0) {
     return disk_error;
@@ -98,7 +98,7 @@ int set_block_to_free(int offset) {
 
 int remove_next_free_and_set_free_after_it() {
   /* get next free block and set it to the free block after it*/
-  uint8_t TFS_buffer[BLOCKSIZE];
+  char TFS_buffer[BLOCKSIZE];
   unsigned char bytes[4];
   int next_free_block_offset, free_block_after_it;
   // get the superblock check for first free block
@@ -301,7 +301,7 @@ int tfs_mount(char *diskname) {
   }
   // Unmount current TinyFS and mount the new one opened.
   int status;
-  if ((status = unmount(curr_fs_fd) < 0))
+  if ((status = tfs_unmount() < 0))
   {
     //if unmount fails because of closeDisk
     if (status == CLOSEDISK_FAIL)
@@ -322,7 +322,7 @@ fileDescriptor tfs_openFile(char *name) {
   int logical_offset;
   int first_null_fd_idx = -1;
 
-  uint8_t TFS_buffer[BLOCKSIZE];
+  char TFS_buffer[BLOCKSIZE];
   char filename_buffer[FILENAME_SIZE];
 
   // check all the filedescriptor table to see if you can find the filename containing "name"
@@ -381,7 +381,7 @@ fileDescriptor tfs_openFile(char *name) {
   file_pointer fp;
 
   // find it with linear probing (assuming it's not a directory right now)
-  while (num_read = read(curr_fs_fd, buffer, BLOCKSIZE) > 0) {
+  while ((num_read = read(curr_fs_fd, buffer, BLOCKSIZE)) > 0) {
     // if it's an inode and the name matches, then you cache it in open directory file
     if (buffer[BLOCKTYPE_IDX] == INODE_CODE && !strcmp(filename_buffer, name)) {
       
@@ -446,7 +446,7 @@ file’s content, to the file system.  */
   char curr_filename[FILENAME_SIZE];
 
   // internal buffer to store the read block
-  uint8_t TFS_buffer[BLOCKSIZE];
+  char TFS_buffer[BLOCKSIZE];
 
   file_pointer file_pointer = file_descriptor_table[FD];
   
@@ -625,7 +625,7 @@ int tfs_deleteFile(fileDescriptor FD) {
 
   file_pointer fp_struct = file_descriptor_table[FD];
   
-  uint8_t TFS_buffer[BLOCKSIZE];
+  char TFS_buffer[BLOCKSIZE];
   int disk_error;
   // get the superblock check for first file content block
   if ((disk_error = readBlock(curr_fs_fd, fp_struct.inode_offset, TFS_buffer)) < 0) {
@@ -671,7 +671,7 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
   }
 
   // buffer that stores the file extent contents
-  uint8_t TFS_buffer[BLOCKSIZE];
+  char TFS_buffer[BLOCKSIZE];
 
   // read in the current file extent block
   if ((disk_error = readBlock(curr_fs_fd, curr_fe_offset, TFS_buffer)) < 0) {
@@ -717,11 +717,11 @@ int tfs_seek(fileDescriptor FD, int offset) {
     return OFFSET_FAIL;
   }
 
-  int pointer = curr_file_pointer.pointer;
-  pointer = offset % FILE_EXTENT_DATA_LIMIT;
+  // int pointer = curr_file_pointer.pointer;
+  // pointer = offset % FILE_EXTENT_DATA_LIMIT;
   //get curr_file_extent_offset
  
-  uint8_t TFS_buffer[BLOCKSIZE];
+  char TFS_buffer[BLOCKSIZE];
   // initially sets curr_file_extent_offset to the first extent
   // and next_file_extent_offset to the one after first extent
   int read_inode;
@@ -756,7 +756,7 @@ time_t tfs_readFileInfo(fileDescriptor FD) {
     return EBADF;
   }
   //grabbing inode buffer   
-  uint8_t TFS_buffer[BLOCKSIZE];
+  char TFS_buffer[BLOCKSIZE];
   if ((disk_error = readBlock(FD, fd_file_pointer.inode_offset, TFS_buffer)) < 0) {
     return disk_error;
   }
