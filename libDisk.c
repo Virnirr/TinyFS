@@ -17,7 +17,7 @@ int openDisk(char *filename, int nBytes) {
 
     if (nBytes < BLOCKSIZE && nBytes > 0) {
       perror("nBytes is less than BLOCKSIZE failure");
-      return -1;
+      return OPENDISKERROR;
     } 
 
     // If nBytes is not multiple of BLOCKSIZE, set it as multiple of BLOCKSIZE lower than nBytes, but > 0
@@ -30,7 +30,7 @@ int openDisk(char *filename, int nBytes) {
       disk_fd = open(filename, OFLAGS_OVER_WRITE, RWPERMS);
       if (disk_fd < 0) {
         perror("open disk filename");
-        return -1;
+        return OPENDISKERROR;
       }
       total_byte = sizeof(char) * nBytes;
       // Write to filename nBytes of 0 to specify size of disk in memory
@@ -42,7 +42,7 @@ int openDisk(char *filename, int nBytes) {
       size_t written = write(disk_fd, buffer, total_byte);
       if (written < total_byte) {
         perror("Failed to write zeros to file");
-        return -1;
+        return OPENDISKERROR;
       }
       free(buffer); // free buffer since it's only one time use
     }
@@ -53,7 +53,7 @@ int openDisk(char *filename, int nBytes) {
       disk_fd = open(filename, OFLAGS_EXIST, RWPERMS);
       if (disk_fd < 0) {
         perror("open disk with 0 bytes");
-        return -1;
+        return OPENDISKERROR;
       }
     }
 

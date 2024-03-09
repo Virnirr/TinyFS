@@ -2,7 +2,7 @@
 #define UNMOUNT_SUCCESS 10 // no such file or directory
 #define ENOENT -1 // no such file or directory
 
-#define EEXIST -2 // file exist
+#define OPENDISKERROR -2 // file exist
 #define EFAULT -3 // bad address
 
 #define EBADF -4 // bad file descriptor

@@ -3,9 +3,9 @@ CFLAGS = -Wall -g -std=c99
 PROG = tinyFSDemo
 DTEST = diskTest
 
-DOBJS = diskTest.o libDisk.o
+DOBJS = libDisk.o
 
-OBJS = libTinyFS.o libDisk.o diskTest.o
+OBJS = tinyFSDemo.o libTinyFS.o libDisk.o
 
 $(PROG): $(OBJS)
 	$(CC) $(CFLAGS) -o $(PROG) $(OBJS)

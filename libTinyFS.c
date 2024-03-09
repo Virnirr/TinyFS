@@ -170,6 +170,10 @@ int tfs_mkfs(char *filename, int nBytes) {
     perror("Too Small");
     return EMINLIMIT;
   }
+
+  if (strlen(filename) > FILENAME_SIZE) {
+    return OPENDISKERROR;
+  }
   
   // initializing superblock of new file system
   superblock sb;
