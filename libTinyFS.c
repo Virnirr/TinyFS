@@ -46,7 +46,6 @@ void fill_new_inode_buffer(inode *inode_buffer, int file_type, char *filename) {
 
   inode_buffer->first_file_extent = -1;
 
-  
   // set all rest to 0 (i.e. no children)
   memset(inode_buffer->rest, 0, REST_OF_INODE);
 }
@@ -66,7 +65,6 @@ int convert_str_to_int(char *buffer, int start, int end) {
 
 int set_block_to_free(int offset) {
   /* Uses a stack structure LIFO. Util function to set block to free. */
-
   free_block fe;
   fe.block_type = FE_CODE;
   fe.magic_num = MAGIC_NUM;
@@ -168,6 +166,7 @@ int tfs_mkfs(char *filename, int nBytes) {
     return EMAX_INT; // returns -7
   }
 
+  // ? seems like need more than 2 blocks with root
   if ((int) (nBytes / BLOCKSIZE) < 2) {
     perror("Too Small");
     return EMINLIMIT;
@@ -179,7 +178,9 @@ int tfs_mkfs(char *filename, int nBytes) {
   sb.magic_num = MAGIC_NUM;
   sb.address_of_root = ROOT_ADDRESS_IDX; // setting as 1 since logical offset 1
   sb.next_free_block = NEXT_FREE_BLOCK_IDX; // starts at 2
+  // ? later create root inode and root fe, so should be 4
   // initialize the rest as 0
+  // ? this isn't filling full sb, only 212 bytes, also unnecessary because initialized as \0
   for (int i = 0; i < REST_OF_INODE; i++)
   {
     sb.rest[i] = 0;
@@ -215,6 +216,8 @@ int tfs_mkfs(char *filename, int nBytes) {
   // copy "/" into prefix and append with rest with NULL or \0
   // strncpy(root.prefix, "/", PREFIX_SIZE);
   
+  // ? you have comment of 1, but root_pos is actually 2, so you're writing the root inode block into the 3rd block
+  // even though in sb you have address_of_root = 1
   int fs_idx = ROOT_POS; // 1
   
   // write the root block into TinyFS
@@ -230,7 +233,7 @@ int tfs_mkfs(char *filename, int nBytes) {
   // fe.next_fe = -1;
   // // set the data to all NULL
   // memset(fe.data, '\0', FILE_EXTENT_DATA_LIMIT);
-
+  // ? need to update fs_idx from 1 to 2
   // write root block's file extent into TinyFS
   if ((disk_error = writeBlock(disk_fd, fs_idx, &root)) < 0) {
     perror("write block");
@@ -242,11 +245,13 @@ int tfs_mkfs(char *filename, int nBytes) {
   fb.block_type = FB_CODE;
   fb.magic_num = MAGIC_NUM;
   // initialize the rest as 0
+  // ? again, unnecessary
   for (int i = 0; i < REST_OF_INODE; i++)
   {
     fb.rest[i] = 0;
   }
   // fill the rest of the memory as free blocks
+  // ? fs_idx should start at 3
   for (fs_idx = 2; fs_idx < (int) (nBytes / BLOCKSIZE) - 1; fs_idx++) {
     // initialize next free block as linked list and write it into file system
     fb.next_fb = fs_idx + 1;
@@ -428,9 +433,11 @@ fileDescriptor tfs_openFile(char *name) {
         if (readBlock(curr_fs_fd, fp.curr_file_extent_offset, buffer) < 0) {
           return -1;
         }
+        // ? its not an inode, but a file extent, so it should be 2, 5
         fp.next_file_extent_offset = convert_str_to_int(buffer, 40, 43);
       }
-
+      // ? you never store the fp in the table, I think that should be done here rather than this
+      // I think it's better to store directly like this than have a local file_pointer since you would have to malloc
       file_descriptor_table[file_fd_idx].inode_offset = logical_disk_offset;
       break;
     }
@@ -440,7 +447,7 @@ fileDescriptor tfs_openFile(char *name) {
     perror("read");
     return -1;
   }
-
+  // ? its supposed to return a fd, not 0
   return 0;
 }
 
@@ -451,7 +458,7 @@ int tfs_closeFile(fileDescriptor FD) {
   if (file_descriptor_table[FD].pointer == -1) {
     return EBADF;
   }
-  
+  // ? free the file pointer if you decide to malloc, this is fine otherwise
   file_descriptor_table[FD].pointer = -1;
 
   return 0;
@@ -487,6 +494,7 @@ file’s content, to the file system.  */
   // free the current content so you restart over
   while (file_content_offset != -1) {
     // get the superblock check for first free block
+    // ? file_content_offset is set to the first file extent, not superblock (guessing comment is wrong)
     if ((disk_error = readBlock(curr_fs_fd, file_content_offset, TFS_buffer)) < 0) {
       return disk_error;
     }
@@ -501,6 +509,7 @@ file’s content, to the file system.  */
   }
 
   // write and save the first file extent to the inode
+  // ? stopped here
   int write_size = size;
   int free_block_offset = remove_next_free_and_set_free_after_it();
 
