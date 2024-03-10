@@ -54,60 +54,15 @@ void fill_new_inode_buffer(inode *inode_buffer, int file_type, char *filename) {
   memset(inode_buffer->rest, 0, REST_OF_INODE);
 }
 
-void inplace_reverse(char * str)
-{
-  if (str)
-  {
-    char * end = str + strlen(str) - 1;
-
-    // swap the values in the two given variables
-    // XXX: fails when a and b refer to same memory location
-#   define XOR_SWAP(a,b) do\
-    {\
-      a ^= b;\
-      b ^= a;\
-      a ^= b;\
-    } while (0)
-
-    // walk inwards from both ends of the string, 
-    // swapping until we get to the middle
-    while (str < end)
-    {
-      XOR_SWAP(*str, *end);
-      str++;
-      end--;
-    }
-#   undef XOR_SWAP
-  }
-}
-
 
 // Helper function to convert individual bytes (as strings) to an integer, assuming little-endian format
 
-int convert_str_to_int(char *buffer, int start, int end) {
+int get_byte_in_int(char *buffer, int start) {
   /* Takes as input */
-  char int_in_str[SIZE_OF_INT_IN_STR - 1];
-  
+  int result;
+  memcpy(&result, buffer+start, sizeof(int));
 
-  memcpy(int_in_str, buffer+start, sizeof(int));
-
-  unsigned char byteArray[4];
-  for (int i = 0; i < 4; i++)
-  {
-    long int byteValue = strtol(int_in_str[i], NULL, 16);
-
-    byteArray[i] = (unsigned char) byteValue;
-  }
-  uint32_t result = 0;
-  for(int i = 0; i < 4; i++) {
-        result |= ((unsigned char) byteArray[i]) << (i * 8);
-  }
-
-  printf("result: %d\n", result);
-
-  printf("\nint to str: %d\n", (int)strtol(int_in_str, NULL, 16));
-
-  return strtol(int_in_str, NULL, 16);
+  return result
 }
 
 int set_block_to_free(int offset) {
@@ -124,7 +79,7 @@ int set_block_to_free(int offset) {
   }
 
   /* the next free block in offset  */
-  next_free_block_offset = convert_str_to_int(TFS_buffer, 6, 9);
+  next_free_block_offset = get_byte_in_int(TFS_buffer, 6);
 
   fe.next_fb = next_free_block_offset; // set it to first
   
@@ -162,7 +117,7 @@ int remove_next_free_and_set_free_after_it() {
   
   printf("---------------------\n");
   /* the next free block in offset  */
-  next_free_block_offset = convert_str_to_int(TFS_buffer, 6, 9);
+  next_free_block_offset = get_byte_in_int(TFS_buffer, 6);
   if(next_free_block_offset == -1){
     return LIMIT_REACHED;
   } 
@@ -171,7 +126,7 @@ int remove_next_free_and_set_free_after_it() {
   if ((disk_error = readBlock(curr_fs_fd, next_free_block_offset, TFS_buffer)) < 0) {
     return disk_error;
   }
-  free_block_after_it = convert_str_to_int(TFS_buffer, 2, 5);
+  free_block_after_it = get_byte_in_int(TFS_buffer, 2);
 
   printf("next_free_block_offset: %d\n", next_free_block_offset);
 
@@ -483,9 +438,9 @@ fileDescriptor tfs_openFile(char *name) {
       fp.inode_offset = logical_disk_offset;
       
       // get the file extent and store into file pointer from the buffer
-      fp.curr_file_extent_offset = convert_str_to_int(buffer, 40, 43);
+      fp.curr_file_extent_offset = get_byte_in_int(buffer, 40);
       fp.pointer = 0; // where the first data is pointed at in the file extent
-      fp.file_size = convert_str_to_int(buffer, 12, 15);
+      fp.file_size = get_byte_in_int(buffer, 12);
       fp.next_file_extent_offset = -1; // default for next file extent
 
       // read the first file extent if there is any and get the next file extent offset from it
@@ -493,7 +448,7 @@ fileDescriptor tfs_openFile(char *name) {
         if (readBlock(curr_fs_fd, fp.curr_file_extent_offset, buffer) < 0) {
           return -1;
         }
-        fp.next_file_extent_offset = convert_str_to_int(buffer, 2, 5);
+        fp.next_file_extent_offset = get_byte_in_int(buffer, 2);
       }
 
       // store fp into global file descriptor table
@@ -569,7 +524,7 @@ file’s content, to the file system.  */
     return disk_error;
   }
 
-  file_content_offset = convert_str_to_int(TFS_buffer, 40, 43);
+  file_content_offset = get_byte_in_int(TFS_buffer, 40);
 
   // copy to the current filename buffer
   strcpy(curr_filename, TFS_buffer + 3);
@@ -584,7 +539,7 @@ file’s content, to the file system.  */
       return disk_error;
     }
     // set it to next content offset (if there is any) so you can free that one too
-    next_file_content_offset = convert_str_to_int(TFS_buffer, 2, 5);
+    next_file_content_offset = get_byte_in_int(TFS_buffer, 2);
     if (set_block_to_free(file_content_offset) < 0) {
       perror("set block to free");
       return -1;
@@ -746,7 +701,7 @@ int tfs_deleteFile(fileDescriptor FD) {
     return disk_error;
   }
   //gets content of inode
-  int file_content_offset = convert_str_to_int(TFS_buffer, 40, 43);
+  int file_content_offset = get_byte_in_int(TFS_buffer, 40);
 
   // there's content, so set it to free block
   while (file_content_offset != -1) {
@@ -755,7 +710,7 @@ int tfs_deleteFile(fileDescriptor FD) {
       return disk_error;
     }
     // set it to next content offset (if there is any) so you can free that one too
-    file_content_offset = convert_str_to_int(TFS_buffer, 2, 5);
+    file_content_offset = get_byte_in_int(TFS_buffer, 2);
     if (set_block_to_free(file_content_offset) < 0) {
       perror("set block to free");
       return -1;
@@ -807,7 +762,7 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
           return disk_error;
         }
       curr_fe_offset = next_fe_offset;
-      next_fe_offset = convert_str_to_int(TFS_buffer, 2, 5);
+      next_fe_offset = get_byte_in_int(TFS_buffer, 2);
     }
   }
 
@@ -842,11 +797,11 @@ int tfs_seek(fileDescriptor FD, int offset) {
   if ((read_inode = readBlock(FD, curr_file_pointer.inode_offset, TFS_buffer)) < 0) {
       return read_inode;
   }
-  int curr_file_extent = convert_str_to_int(TFS_buffer, 40, 43);
+  int curr_file_extent = get_byte_in_int(TFS_buffer, 40);
   if ((read_inode = readBlock(FD, curr_file_extent, TFS_buffer)) < 0) {
       return read_inode;
   }
-  int next_file_extent = convert_str_to_int(TFS_buffer, 2, 5);
+  int next_file_extent = get_byte_in_int(TFS_buffer, 2);
   // then, if offset is larger than one file extent, loop through the file extents 
    int page_offset = (int) (offset / FILE_EXTENT_DATA_LIMIT);
   for (int i = 0; i < page_offset; i++)
@@ -855,7 +810,7 @@ int tfs_seek(fileDescriptor FD, int offset) {
     if ((read_inode = readBlock(FD, curr_file_extent, TFS_buffer)) < 0) {
     return read_inode;
     }
-    next_file_extent = convert_str_to_int(TFS_buffer, 2, 5);
+    next_file_extent = get_byte_in_int(TFS_buffer, 2);
   }
   return 0;
 }
