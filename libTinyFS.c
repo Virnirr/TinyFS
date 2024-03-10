@@ -87,8 +87,23 @@ void inplace_reverse(char * str)
 int convert_str_to_int(char *buffer, int start, int end) {
   /* Takes as input */
   char int_in_str[SIZE_OF_INT_IN_STR - 1];
+  
 
   memcpy(int_in_str, buffer+start, sizeof(int));
+
+  unsigned char byteArray[4];
+  for (int i = 0; i < 4; i++)
+  {
+    long int byteValue = strtol(int_in_str[i], NULL, 16);
+
+    byteArray[i] = (unsigned char) byteValue;
+  }
+  uint32_t result = 0;
+  for(int i = 0; i < 4; i++) {
+        result |= ((unsigned char) byteArray[i]) << (i * 8);
+  }
+
+  printf("result: %d\n", result);
 
   printf("\nint to str: %d\n", (int)strtol(int_in_str, NULL, 16));
 
