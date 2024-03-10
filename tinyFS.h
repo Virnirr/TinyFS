@@ -7,7 +7,7 @@ total. This is a default size. You must be able to support different
 possible values */
 #define DEFAULT_DISK_SIZE 10240
 /* use this name for a default emulated disk file name */
-#define DEFAULT_DISK_NAME “tinyFSDisk”
+#define DEFAULT_DISK_NAME "tinyDisk"
 #define META_DATA_SIZE 4
 
 // index
@@ -60,7 +60,7 @@ typedef struct __attribute__((__packed__)) superblock {
   char   magic_num;                /* byte 1 */
   int    address_of_root;          /* byte 2-5*/
   int    next_free_block;         //  byte 6-9 by having a pointer to the first free block in a chain of free blocks
-  char   rest[246];               /* bytes 10-255 is \0 bytes */
+  char   rest[REST_OF_SB];               /* bytes 10-255 is \0 bytes */
 } superblock;
 
 
@@ -91,7 +91,7 @@ typedef struct __attribute__((__packed__)) free_block {
   char block_type;      /* byte 0 */
   char magic_num;       /* byte 1 */
   int  next_fb;         /* byte 2-5 Note: -1, if end of file */ 
-  char rest[250];        /* byte 6-255 is \0 bytes */
+  char rest[REST_OF_FB];        /* byte 6-255 is \0 bytes */
 } free_block;
 
 typedef struct __attribute__((__packed__)) file_pointer {
