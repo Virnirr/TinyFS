@@ -54,27 +54,45 @@ void fill_new_inode_buffer(inode *inode_buffer, int file_type, char *filename) {
   memset(inode_buffer->rest, 0, REST_OF_INODE);
 }
 
+void inplace_reverse(char * str)
+{
+  if (str)
+  {
+    char * end = str + strlen(str) - 1;
+
+    // swap the values in the two given variables
+    // XXX: fails when a and b refer to same memory location
+#   define XOR_SWAP(a,b) do\
+    {\
+      a ^= b;\
+      b ^= a;\
+      a ^= b;\
+    } while (0)
+
+    // walk inwards from both ends of the string, 
+    // swapping until we get to the middle
+    while (str < end)
+    {
+      XOR_SWAP(*str, *end);
+      str++;
+      end--;
+    }
+#   undef XOR_SWAP
+  }
+}
+
+
+// Helper function to convert individual bytes (as strings) to an integer, assuming little-endian format
 
 int convert_str_to_int(char *buffer, int start, int end) {
   /* Takes as input */
-  char int_in_str[SIZE_OF_INT_IN_STR];
+  char int_in_str[SIZE_OF_INT_IN_STR - 1];
 
+  memcpy(int_in_str, buffer+start, sizeof(int));
 
-  // checking for endianess
-  long x = 0x44434241;
-  char *y = (char *) &x;
+  printf("\nint to str: %d\n", (int)strtol(int_in_str, NULL, 16));
 
-  if(strncmp(y,"ABCD",4)){
-    printf("Big Endian\n");
-  }else{
-    strncpy(int_in_str, buffer+start, SIZE_OF_INT_IN_STR - 1);
-  }
-
-  int_in_str[SIZE_OF_INT_IN_STR] = '\0';
-  // for (i = start; i < end + 1; i++) {
-  //     size_temp[j++] = buffer[i];
-  // }
-  return strtol(int_in_str, NULL, BASE_TEN);
+  return strtol(int_in_str, NULL, 16);
 }
 
 int set_block_to_free(int offset) {
@@ -120,6 +138,14 @@ int remove_next_free_and_set_free_after_it() {
     return disk_error;
   }
 
+  printf("-------bufferr-------\n");
+
+  int i;
+  for(i = 0; i < BLOCKSIZE; i++)
+      printf("%x ", TFS_buffer[i]);
+
+  
+  printf("---------------------\n");
   /* the next free block in offset  */
   next_free_block_offset = convert_str_to_int(TFS_buffer, 6, 9);
   if(next_free_block_offset == -1){
@@ -131,6 +157,8 @@ int remove_next_free_and_set_free_after_it() {
     return disk_error;
   }
   free_block_after_it = convert_str_to_int(TFS_buffer, 2, 5);
+
+  printf("next_free_block_offset: %d\n", next_free_block_offset);
 
   
   // get the superblock again
