@@ -62,7 +62,7 @@ int get_byte_in_int(char *buffer, int start) {
   int result;
   memcpy(&result, buffer+start, sizeof(int));
 
-  return result
+  return result;
 }
 
 int set_block_to_free(int offset) {
@@ -107,15 +107,6 @@ int remove_next_free_and_set_free_after_it() {
   if ((disk_error = readBlock(curr_fs_fd, 0, TFS_buffer)) < 0) {
     return disk_error;
   }
-
-  printf("-------bufferr-------\n");
-
-  int i;
-  for(i = 0; i < BLOCKSIZE; i++)
-      printf("%x ", TFS_buffer[i]);
-
-  
-  printf("---------------------\n");
   /* the next free block in offset  */
   next_free_block_offset = get_byte_in_int(TFS_buffer, 6);
   if(next_free_block_offset == -1){
@@ -128,7 +119,7 @@ int remove_next_free_and_set_free_after_it() {
   }
   free_block_after_it = get_byte_in_int(TFS_buffer, 2);
 
-  printf("next_free_block_offset: %d\n", next_free_block_offset);
+  // printf("next_free_block_offset: %d\n", next_free_block_offset);
 
   
   // get the superblock again
@@ -151,7 +142,7 @@ int remove_next_free_and_set_free_after_it() {
     return disk_error;
   }
 
-  printf("this is the bruh %d and this is byte %s\n", next_free_block_offset, bytes);
+  // printf("this is the bruh %d and this is byte %s\n", next_free_block_offset, bytes);
   return next_free_block_offset;
 }
 
@@ -226,12 +217,6 @@ int tfs_mkfs(char *filename, int nBytes) {
     perror("write block");
     return disk_error;
   }
-
-  int i;
-  for(i = 0; i < BLOCKSIZE; i++)
-      printf("%x ", buffer[i]);
-
-  printf("\nend super block\n");
 
 
 
@@ -481,12 +466,12 @@ fileDescriptor tfs_openFile(char *name) {
     fp.next_file_extent_offset = -1; // default for next file extent
     fp.curr_file_extent_offset = -1; // default for current file extent
 
-    printf("%d\n", fp.inode_offset);
+    // printf("%d\n", fp.inode_offset);
 
     file_descriptor_table[first_null_fd_idx] = fp;
   }
 
-  printf("this is the inode: %d\n",fp.inode_offset);
+  // printf("this is the inode: %d\n",fp.inode_offset);
   return fp.inode_offset;
 }
 
