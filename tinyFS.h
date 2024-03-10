@@ -7,8 +7,7 @@ total. This is a default size. You must be able to support different
 possible values */
 #define DEFAULT_DISK_SIZE 10240
 /* use this name for a default emulated disk file name */
-#define DEFAULT_DISK_NAME "tinyDisk"
-#define META_DATA_SIZE 4
+#define DEFAULT_DISK_NAME "tinyFSDisk"
 
 // index
 #define NEXT_FREE_BLOCK_IDX 2
@@ -39,8 +38,6 @@ possible values */
 #define FILE_SIZE_TEMP 5
 
 #define BASE_TEN 10
-
-#define FILE_EXTENT_META_DATA_SIZE 6
 
 
 #define ROOT_POS 1

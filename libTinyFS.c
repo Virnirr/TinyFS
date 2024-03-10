@@ -8,7 +8,6 @@
 #include <stdlib.h>
 #include <time.h>
 
-#define BLOCKTYPE_IDX 0
 #define MAGIC_IDX 1
 #define NEXT_ADDR_IDX 2
 #define EMPTY_IDX 3
@@ -35,7 +34,7 @@ void fill_new_inode_buffer(inode *inode_buffer, int file_type, char *filename) {
   inode_buffer->magic_num = MAGIC_NUM;
   inode_buffer->file_type = file_type;
   if (filename == NULL) {
-    strncpy(inode_buffer->filename, "filename", FILENAME_SIZE);
+    strncpy(inode_buffer->filename, "root", FILENAME_SIZE);
   }
   else {
     strncpy(inode_buffer->filename, filename, FILENAME_SIZE);
@@ -79,7 +78,7 @@ int set_block_to_free(int offset) {
   }
 
   /* the next free block in offset  */
-  next_free_block_offset = get_byte_in_int(TFS_buffer, 6);
+  next_free_block_offset = ((superblock *)TFS_buffer)->next_free_block;
 
   fe.next_fb = next_free_block_offset; // set it to first
   
@@ -90,7 +89,7 @@ int set_block_to_free(int offset) {
   }
 
   // making the block u just freed into the next_free_block of superblock
-  memcpy(TFS_buffer + 6, &offset, sizeof(int));
+  memcpy(&((superblock *)TFS_buffer)->next_free_block, &offset, sizeof(int));
   if (writeBlock(curr_fs_fd, 0, TFS_buffer) < 0) {
   perror("Disk Write");
   return -1;
@@ -143,17 +142,13 @@ int tfs_mkfs(char *filename, int nBytes) {
     Makes a blank TinyFS file system of size nBytes and mount it onto
     the unix "filename" file. 
   */
- //populates fd table if called for the first time
-  file_pointer temp_pointer;
-  if (is_fd_table_unpopulated){
-    for(int i = 0; i < FILE_DESCRIPTOR_LIMIT; i++){
-      temp_pointer.inode_offset = -1;
-      temp_pointer.curr_file_extent_offset = -1;
-      temp_pointer.next_file_extent_offset = -1;
-      temp_pointer.pointer = -1;
-      temp_pointer.file_size = -1;
-      file_descriptor_table[i] = temp_pointer;
-    }
+  // populates fd table
+  for(int i = 0; i < FILE_DESCRIPTOR_LIMIT; i++){
+    file_descriptor_table[i].inode_offset = -1;
+    file_descriptor_table[i].curr_file_extent_offset = -1;
+    file_descriptor_table[i].next_file_extent_offset = -1;
+    file_descriptor_table[i].pointer = -1;
+    file_descriptor_table[i].file_size = -1;
   }
   int disk_error;
   // Maximum number of blocks: 2,147,483,647
@@ -166,11 +161,6 @@ int tfs_mkfs(char *filename, int nBytes) {
   if ((int) (nBytes / BLOCKSIZE) < 2) {
     perror("Too Small");
     return EMINLIMIT;
-  }
-
-  if (strlen(filename) > FILENAME_SIZE) {
-    perror("Filename Too Big");
-    return OPENDISKERROR;
   }
   
   // initializing superblock of new file system
@@ -282,7 +272,14 @@ int tfs_unmount(void) {
 //“mounts” a TinyFS file system located within ‘diskname’
 int tfs_mount(char *diskname) {
   int disk_fd;
-
+  // resets the fd table
+  for(int i = 0; i < FILE_DESCRIPTOR_LIMIT; i++){
+    file_descriptor_table[i].inode_offset = -1;
+    file_descriptor_table[i].curr_file_extent_offset = -1;
+    file_descriptor_table[i].next_file_extent_offset = -1;
+    file_descriptor_table[i].pointer = -1;
+    file_descriptor_table[i].file_size = -1;
+  }
 
   // open existing disk
   if ((disk_fd = openDisk(diskname, 0)) < 0) {
@@ -346,6 +343,7 @@ fileDescriptor tfs_openFile(char *name) {
     return NO_DISK;
   }
   
+  // ? this is file name, not of the file system, change error
   if (!name || strlen(name) > FILENAME_SIZE - 1) {
     return NOT_A_FILE_SYSTEM;
   }
@@ -398,8 +396,8 @@ fileDescriptor tfs_openFile(char *name) {
   // find it with linear probing (assuming it's not a directory)
   while ((num_read = read(curr_fs_fd, buffer, BLOCKSIZE)) > 0) {
     // if it's an inode and the name matches, then you cache it in open directory file
-    if (buffer[BLOCKTYPE_IDX] == INODE_CODE && !strcmp(filename_buffer, name)) {
-      
+    if (((inode *)buffer)->block_type == INODE_CODE && 
+        !strcmp(((inode *)buffer)->filename, name)) {
       // find a location that exist and set that location as the logical disk offset.
       // file_fd_idx = hash(name); do linear probe instead
       // while (file_descriptor_table[file_fd_idx].pointer != -1) {
@@ -409,9 +407,9 @@ fileDescriptor tfs_openFile(char *name) {
       fp.inode_offset = logical_disk_offset;
       
       // get the file extent and store into file pointer from the buffer
-      fp.curr_file_extent_offset = get_byte_in_int(buffer, 40);
+      fp.curr_file_extent_offset = ((inode *)buffer)->first_file_extent;
       fp.pointer = 0; // where the first data is pointed at in the file extent
-      fp.file_size = get_byte_in_int(buffer, 12);
+      fp.file_size = ((inode *)buffer)->file_size;
       fp.next_file_extent_offset = -1; // default for next file extent
 
       // read the first file extent if there is any and get the next file extent offset from it
@@ -419,11 +417,12 @@ fileDescriptor tfs_openFile(char *name) {
         if (readBlock(curr_fs_fd, fp.curr_file_extent_offset, buffer) < 0) {
           return -1;
         }
-        fp.next_file_extent_offset = get_byte_in_int(buffer, 2);
+        fp.next_file_extent_offset = ((file_extent *)buffer)->next_fe;
       }
 
       // store fp into global file descriptor table
       file_descriptor_table[first_null_fd_idx] = fp;
+      return first_null_fd_idx;
     }
     logical_disk_offset++;
   }
@@ -468,8 +467,12 @@ int tfs_closeFile(fileDescriptor FD) {
     return EBADF;
   }
 
-  // place holder for telling if a file descriptor table entry is empty
+  // remove entry from fd table
+  file_descriptor_table[FD].inode_offset = -1;
+  file_descriptor_table[FD].curr_file_extent_offset = -1;
+  file_descriptor_table[FD].next_file_extent_offset = -1;
   file_descriptor_table[FD].pointer = -1;
+  file_descriptor_table[FD].file_size = -1;
 
   return 0;
 }
@@ -591,10 +594,10 @@ file’s content, to the file system.  */
   while (write_size > 0) {
 
     // sys call failure so exit 
-    if ((curr_fe = (file_extent *)malloc(sizeof(write_node))) < 0) {
-      perror("malloc");
-      exit(EXIT_FAILURE);
-    }
+    if ((curr_fe = (file_extent *)calloc(1, sizeof(file_extent))) == NULL) {
+    perror("calloc");
+    exit(EXIT_FAILURE);
+  }
     
     curr_fe -> block_type = FE_CODE;
     curr_fe -> magic_num = MAGIC_NUM;
@@ -673,7 +676,8 @@ int tfs_deleteFile(fileDescriptor FD) {
     return disk_error;
   }
   //gets content of inode
-  int file_content_offset = get_byte_in_int(TFS_buffer, 40);
+  int file_content_offset = ((inode *)TFS_buffer)->first_file_extent;
+  int next_content_offset;
 
   // there's content, so set it to free block
   while (file_content_offset != -1) {
@@ -682,11 +686,12 @@ int tfs_deleteFile(fileDescriptor FD) {
       return disk_error;
     }
     // set it to next content offset (if there is any) so you can free that one too
-    file_content_offset = get_byte_in_int(TFS_buffer, 2);
+    next_content_offset = ((file_extent *)TFS_buffer)->next_fe;
     if (set_block_to_free(file_content_offset) < 0) {
       perror("set block to free");
       return -1;
     }
+    file_content_offset = next_content_offset;
   }
   // free the inode
   if (set_block_to_free(fp_struct.inode_offset) < 0) {
@@ -700,13 +705,12 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
   /* reads one byte from the file and copies it to buffer, using the
   current file pointer location and incrementing it by one upon success. */
   file_pointer curr_file_pointer = file_descriptor_table[FD];
-  int pointer = curr_file_pointer.pointer;
+  int pointer = curr_file_pointer.pointer % FILE_EXTENT_DATA_LIMIT;
   int next_fe_offset = curr_file_pointer.next_file_extent_offset;
   int curr_fe_offset = curr_file_pointer.curr_file_extent_offset;
 
-  // File pointer has already past the end of the file (i.e. > FILE_EXTENT_DATA_LIMIT and no next file extent offset)
-  if (curr_file_pointer.pointer - FILE_EXTENT_META_DATA_SIZE > FILE_EXTENT_DATA_LIMIT 
-      && next_fe_offset == -1) {
+  // File pointer has already past the end of the file
+  if (curr_file_pointer.pointer >= curr_file_pointer.file_size ) {
     perror("end of file");
     return TFS_EFO;
   }
@@ -714,32 +718,47 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
   // buffer that stores the file extent contents
   char TFS_buffer[BLOCKSIZE];
 
+  // end of data block for file pointer and there's still a data block, 
+  // change curr_file_extent_offset and next_file_extent_offset
+  if (curr_file_pointer.pointer >= FILE_EXTENT_DATA_LIMIT) {
+    int num_next = curr_file_pointer.pointer / FILE_EXTENT_DATA_LIMIT;
+    for (int i = 0; i < num_next; i++) {
+      if (next_fe_offset != -1) {
+        int disk_error;
+          if ((disk_error = readBlock(curr_fs_fd, next_fe_offset, TFS_buffer)) < 0) {
+            return disk_error;
+          }
+        curr_fe_offset = next_fe_offset;
+        next_fe_offset = ((file_extent *)TFS_buffer)->next_fe;
+      }
+    }
+  }
+
   // read in the current file extent block
   if ((disk_error = readBlock(curr_fs_fd, curr_fe_offset, TFS_buffer)) < 0) {
     return disk_error;
   }
 
   // copy the one byte content into buffer
-  strncpy(buffer, &TFS_buffer[pointer], 1);
+  strncpy(buffer, ((file_extent *)TFS_buffer)->data + pointer, 1);
 
-  // increment current file pointer to the next byte;
+
+  // increment current file pointer to the next byte and update in fd table
   curr_file_pointer.pointer++;
+  file_descriptor_table[FD].pointer++;
 
-  // end of data block for file pointer and there's still a data block, 
-  // change curr_file_extent_offset and next_file_extent_offset
-  if (curr_file_pointer.pointer - FILE_EXTENT_META_DATA_SIZE > FILE_EXTENT_DATA_LIMIT) {
-    if (next_fe_offset != -1){
-      int disk_error;
-        if ((disk_error = readBlock(curr_fs_fd, next_fe_offset, TFS_buffer)) < 0) {
-          return disk_error;
-        }
-      curr_fe_offset = next_fe_offset;
-      next_fe_offset = get_byte_in_int(TFS_buffer, 2);
-    }
+  // update the access_time in the inode
+  if ((disk_error = readBlock(curr_fs_fd, curr_file_pointer.inode_offset, TFS_buffer)) < 0) {
+    return disk_error;
   }
-
+  ((inode *)TFS_buffer)->access_time = time(NULL);
+  if (writeBlock(curr_fs_fd, curr_file_pointer.inode_offset, TFS_buffer) < 0) {
+    perror("Disk Write");
+    return -1;
+  }
   return 0;
 }
+
 // change the file pointer location to offset (absolute). 
 // Returns success/error codes
 int tfs_seek(fileDescriptor FD, int offset) {
