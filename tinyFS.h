@@ -48,6 +48,8 @@ possible values */
 #define SIZE_OF_TIME_T_IN_STR sizeof(time_t) + 1
 
 #define REST_OF_INODE 53
+#define REST_OF_SB 246
+#define REST_OF_FB 250
 
 /* use as a special type to keep track of files */
 typedef int fileDescriptor;

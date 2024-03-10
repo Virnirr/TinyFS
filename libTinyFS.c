@@ -51,7 +51,7 @@ void fill_new_inode_buffer(inode *inode_buffer, int file_type, char *filename) {
   inode_buffer->first_file_extent = -1;
 
   // set all rest to 0 (i.e. no children)
-  memset(inode_buffer->rest, 0, REST_OF_INODE);
+  memset(inode_buffer->rest, 0, REST_OF_INODE * 4);
 }
 
 
@@ -191,9 +191,9 @@ int tfs_mkfs(char *filename, int nBytes) {
   sb.next_free_block = NEXT_FREE_BLOCK_IDX; // starts at 2
 
   // initialize the rest as 0
-  for (int i = 0; i < 246; i++)
+  for (int i = 0; i < REST_OF_SB; i++)
   {
-    sb.rest[i] = 0;
+    sb.rest[i] = '\0';
   }
 
 
@@ -223,9 +223,6 @@ int tfs_mkfs(char *filename, int nBytes) {
   // write the root inode into the second block in TinyFS
   inode root;
   fill_new_inode_buffer(&root, DIR_CODE, NULL); // only root will have filename = NULL
-
-
-  root.first_file_extent = ROOT_POS;
   
   // even though in sb you have address_of_root = 1
   int fs_idx = ROOT_POS; // 1
@@ -244,9 +241,9 @@ int tfs_mkfs(char *filename, int nBytes) {
   fb.magic_num = MAGIC_NUM;
 
   // initialize the rest as 0
-  for (int i = 0; i < FILE_EXTENT_DATA_LIMIT; i++)
+  for (int i = 0; i < REST_OF_FB; i++)
   {
-    fb.rest[i] = 0;
+    fb.rest[i] = '\0';
   }
 
   // fill the rest of the memory as free blocks
@@ -405,7 +402,6 @@ fileDescriptor tfs_openFile(char *name) {
   }
 
   char buffer[BLOCKSIZE];
-  int file_fd_idx;
   int logical_disk_offset = 0;
   file_pointer fp;
 
@@ -503,6 +499,12 @@ file’s content, to the file system.  */
   char TFS_buffer[BLOCKSIZE];
 
   file_pointer file_pointer = file_descriptor_table[FD];
+
+  // check if valid fd
+  if (file_pointer.pointer == -1) {
+    perror("unopened file");
+    return EBADF;
+  }
   
   // get the inode of file to check next file extent
   if ((disk_error = readBlock(curr_fs_fd, file_pointer.inode_offset, TFS_buffer)) < 0) {
