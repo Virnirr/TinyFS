@@ -821,9 +821,9 @@ time_t tfs_readFileInfo(fileDescriptor FD) {
     return disk_error;
   }
   //reading the creation time at it's location in inode 
-  char time_in_str[SIZE_OF_TIME_T_IN_STR];
-  strncpy(time_in_str, TFS_buffer+16, SIZE_OF_INT_IN_STR - 1);
-  time_in_str[SIZE_OF_INT_IN_STR] = '\0';
+  time_t creat_time;
+  memcpy(&creat_time, TFS_buffer+16, sizeof(time_t));
+  
   // changing accessed time to now, and writing it back
   time_t now = time(NULL);
   memcpy(TFS_buffer + 24, &now, sizeof(time_t));
@@ -831,7 +831,7 @@ time_t tfs_readFileInfo(fileDescriptor FD) {
     return disk_error;
   }
   //returning creation time
-  return (time_t) strtol(time_in_str, NULL, BASE_TEN);
+  return creat_time;
 }
 
 int tfs_rename(fileDescriptor FD, char* newName) {
