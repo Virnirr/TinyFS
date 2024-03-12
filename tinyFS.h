@@ -44,7 +44,7 @@ possible values */
 #define SIZE_OF_INT_IN_STR sizeof(int) + 1
 #define SIZE_OF_TIME_T_IN_STR sizeof(time_t) + 1
 
-#define REST_OF_INODE 53
+#define REST_OF_INODE 52
 #define REST_OF_SB 246
 #define REST_OF_FB 250
 
@@ -72,7 +72,8 @@ typedef struct __attribute__((__packed__)) inode {
   time_t access_time;              /* byte 24-31 */
   time_t modification_time;        /* byte 32-39 */
   int    first_file_extent;        /* byte 40-43 */
-  int    rest[REST_OF_INODE];         /* byte 44-255. Note: Null is index 212 */
+  int    read_only_bit;        /* byte 44-47, 1 is READ Only, 0 is Read write */ 
+  int    rest[REST_OF_INODE];         /* byte 48-255. Note: Null is index 212 */
 } inode;
 
 /* stores the file extent content block */

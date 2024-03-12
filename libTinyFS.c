@@ -48,6 +48,7 @@ void fill_new_inode_buffer(inode *inode_buffer, int file_type, char *filename) {
   inode_buffer->modification_time = now;
 
   inode_buffer->first_file_extent = -1;
+  inode_buffer->read_only_bit = 0;
 
   // set all rest to 0 (i.e. no children)
   memset(inode_buffer->rest, 0, REST_OF_INODE * 4);
