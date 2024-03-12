@@ -833,3 +833,50 @@ time_t tfs_readFileInfo(fileDescriptor FD) {
   //returning creation time
   return (time_t) strtol(time_in_str, NULL, BASE_TEN);
 }
+
+int tfs_rename(fileDescriptor FD, char* newName) {
+  file_pointer fp = file_descriptor_table[FD];
+  // error if file isn't open
+  if (fp.pointer == -1) {
+    perror("unopened file");
+    return EBADF;
+  }
+  // get inode from disk
+  char TFS_buffer[BLOCKSIZE];
+  if ((disk_error = readBlock(curr_fs_fd, fp.inode_offset, TFS_buffer)) < 0) {
+    return disk_error;
+  }
+  // rename
+  strncpy(((inode *)TFS_buffer)->filename, newName, FILENAME_SIZE);
+  // write to disk
+  if (writeBlock(curr_fs_fd, fp.inode_offset, TFS_buffer) < 0) {
+    perror("Disk Write");
+  }
+  return 0;
+}
+
+void tfs_readdir(void) {
+  int num_read;
+  char TFS_buffer[BLOCKSIZE];
+  // read from start
+  if (lseek(curr_fs_fd, 0, SEEK_SET) == -1) {
+      perror("lseek");
+      exit(EXIT_FAILURE);
+  }
+  // go through blocks
+  while ((num_read = read(curr_fs_fd, TFS_buffer, BLOCKSIZE)) > 0) {
+    // if inode for file
+    if (((inode *)TFS_buffer)->block_type == INODE_CODE && 
+        ((inode *)TFS_buffer)->file_type == FILE_CODE) {
+      // print name
+      write(STDOUT_FILENO, ((inode *)TFS_buffer)->filename,
+          strlen(((inode *)TFS_buffer)->filename));
+      write(STDOUT_FILENO, "  ", 2);
+    }
+  }
+  write(STDOUT_FILENO, "\n", 1);
+  if (num_read < 0) {
+    perror("read");
+    exit(EXIT_FAILURE);
+  }
+}

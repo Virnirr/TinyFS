@@ -143,3 +143,9 @@ tfs_readByte() should return an error and not increment the file pointer.
 int tfs_seek(fileDescriptor FD, int offset);
 /* change the file pointer location to offset (absolute). Returns
 success/error codes.*/
+int tfs_rename(fileDescriptor FD, char* newName);
+/* renames a file. New name should be passed in. File has to be open. */
+void tfs_readdir(void);
+/* lists all the files and directories on the disk, print the
+list to stdout -- Note: if you don’t have hierarchical directories, this just reads
+the root directory aka “all files” */
