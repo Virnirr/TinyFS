@@ -1,5 +1,5 @@
 #include "libDisk.h"
-#include "tinyFS.h"
+#include "libTinyFS.h"
 #include <sys/stat.h>
 #include <string.h>
 #include "TinyFS_errno.h"

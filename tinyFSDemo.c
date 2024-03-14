@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "tinyFS.h"
+#include "libTinyFS.h"
 #include <assert.h> // unit test
 /* usage void assert(scalar expression); */
 #include <string.h>
