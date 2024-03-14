@@ -778,9 +778,8 @@ int tfs_seek(fileDescriptor FD, int offset) {
     return OFFSET_FAIL;
   }
 
-  // int pointer = curr_file_pointer.pointer;
-  // pointer = offset % FILE_EXTENT_DATA_LIMIT;
-  //get curr_file_extent_offset
+  
+  
  
   char TFS_buffer[BLOCKSIZE];
   // initially sets curr_file_extent_offset to the first extent
@@ -804,6 +803,10 @@ int tfs_seek(fileDescriptor FD, int offset) {
     }
     next_file_extent = get_byte_in_int(TFS_buffer, 2);
   }
+  //set pointer, fp's curr and next extent offset to the offset
+  curr_file_pointer.pointer = offset % FILE_EXTENT_DATA_LIMIT;
+  curr_file_pointer.curr_file_extent_offset = curr_file_extent;
+  curr_file_pointer.next_file_extent_offset = next_file_extent;
   return 0;
 }
 
