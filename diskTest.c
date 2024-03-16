@@ -12,7 +12,7 @@
 #define NUM_TEST_BLOCKS 10
 #define TEST_BLOCKS {25,39,8,9,15,21,25,33,35,42}
 
-int main() 
+int diskTest() 
 {
     int index=0; 
     int index2=0;

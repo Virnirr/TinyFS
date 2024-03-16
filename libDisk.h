@@ -21,3 +21,5 @@ int writeBlock(int disk, int bNum, void *block);
 //   char filename[FILE_NAME_SIZE];
 //   open_disk next_disk;
 // } open_disk_list;
+
+int diskTest();

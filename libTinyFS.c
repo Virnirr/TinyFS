@@ -839,24 +839,25 @@ int tfs_seek(fileDescriptor FD, int offset) {
   return 0;
 }
 
-void print_file_content_offset(int FD) {
-  file_pointer curr_file_pointer = file_descriptor_table[FD];
+// int print_file_content_offset(int FD) {
+//   file_pointer curr_file_pointer = file_descriptor_table[FD];
 
-  int curr_file_extent = curr_file_pointer.curr_file_extent_offset;
-  int next_file_extent = curr_file_pointer.next_file_extent_offset;
-  char TFS_buffer[BLOCKSIZE];
-  int read_inode;
+//   int curr_file_extent = curr_file_pointer.curr_file_extent_offset;
+//   int next_file_extent = curr_file_pointer.next_file_extent_offset;
+//   char TFS_buffer[BLOCKSIZE];
+//   int read_inode;
 
-  printf("curr_file_extent: %d\n", curr_file_extent);
-  while (curr_file_extent != -1) {
-    curr_file_extent = next_file_extent;
-    printf("file_extent: %d\n", curr_file_extent);
-    if ((read_inode = readBlock(curr_fs_fd, curr_file_extent, TFS_buffer)) < 0) {
-      return read_inode;
-    }
-    next_file_extent = ((file_extent *)TFS_buffer) -> next_fe;
-  }
-}
+//   printf("curr_file_extent: %d\n", curr_file_extent);
+//   while (curr_file_extent != -1) {
+//     curr_file_extent = next_file_extent;
+//     printf("file_extent: %d\n", curr_file_extent);
+//     if ((read_inode = readBlock(curr_fs_fd, curr_file_extent, TFS_buffer)) < 0) {
+//       return read_inode;
+//     }
+//     next_file_extent = ((file_extent *)TFS_buffer) -> next_fe;
+//   }
+//   return 0;
+// }
 
 
 /* ------------------------------------ Additional Features to TinyFS ------------------------------------ */
