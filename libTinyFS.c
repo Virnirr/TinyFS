@@ -511,6 +511,11 @@ file’s content, to the file system.  */
     return disk_error;
   }
 
+  // fail and return error if it's read_only
+  if (((inode *)TFS_buffer) -> read_only_bit) {
+    return EROFS;
+  }
+
   file_content_offset = ((inode *)TFS_buffer)->first_file_extent;
 
   // copy to the current filename buffer
@@ -685,6 +690,12 @@ int tfs_deleteFile(fileDescriptor FD) {
   if ((disk_error = readBlock(curr_fs_fd, fp_struct.inode_offset, TFS_buffer)) < 0) {
     return disk_error;
   }
+
+    // fail and return error if it's read_only
+  if (((inode *)TFS_buffer) -> read_only_bit) {
+    return EROFS;
+  }
+
   //gets content of inode
   int file_content_offset = ((inode *)TFS_buffer)->first_file_extent;
   int next_content_offset;
@@ -935,4 +946,188 @@ void tfs_readdir(void) {
     perror("read");
     exit(EXIT_FAILURE);
   }
+}
+
+int tfs_makeRO(char *name) {
+  /* makes the file read-only */
+
+  // go throuhg all block to find file name and update to read only
+  int num_read;
+  char TFS_buffer[BLOCKSIZE];
+
+  if (lseek(curr_fs_fd, 0, SEEK_SET) == -1) {
+    perror("lseek");
+    exit(EXIT_FAILURE);
+  }
+  while ((num_read = read(curr_fs_fd, TFS_buffer, BLOCKSIZE)) > 0) {
+    // if inode for file
+    if (((inode *)TFS_buffer)->block_type == INODE_CODE && 
+        ((inode *)TFS_buffer)->file_type == FILE_CODE &&
+        (!strcmp(name, ((inode *)TFS_buffer)->filename))) {
+        
+      // update, write, exit
+      ((inode *)TFS_buffer)->read_only_bit = 1; // set to true;
+      if (write(curr_fs_fd, TFS_buffer, BLOCKSIZE) < 0) {
+        perror("write");
+        exit(EXIT_FAILURE);
+      }
+      break;
+    }
+  }
+  return 0;
+}
+
+int tfs_makeRW(char *name) {
+  /* makes the file read-write */
+
+  // go throuhg all block to find file name and update to read only
+  int num_read;
+  char TFS_buffer[BLOCKSIZE];
+
+  if (lseek(curr_fs_fd, 0, SEEK_SET) == -1) {
+    perror("lseek");
+    exit(EXIT_FAILURE);
+  }
+  while ((num_read = read(curr_fs_fd, TFS_buffer, BLOCKSIZE)) > 0) {
+    // if inode for file
+    if (((inode *)TFS_buffer)->block_type == INODE_CODE && 
+        ((inode *)TFS_buffer)->file_type == FILE_CODE &&
+        (!strcmp(name, ((inode *)TFS_buffer)->filename))) {
+        
+      // update, write, exit
+      ((inode *)TFS_buffer)->read_only_bit = 0; // set to true;
+      if (write(curr_fs_fd, TFS_buffer, BLOCKSIZE) < 0) {
+        perror("write");
+        exit(EXIT_FAILURE);
+      }
+      break;
+    }
+  }
+  return 0;
+}
+
+int tfs_writeByte(fileDescriptor FD, unsigned int data) {
+  /* uses current file pointer instead of offset */
+
+  /* a function that can write one byte to an exact position inside the file*/
+  
+  /* Note: this function uses the same structure as tfs_readByte */
+  file_pointer curr_file_pointer = file_descriptor_table[FD];
+  int pointer = curr_file_pointer.pointer % FILE_EXTENT_DATA_LIMIT;
+  int next_fe_offset = curr_file_pointer.next_file_extent_offset;
+  int curr_fe_offset = curr_file_pointer.curr_file_extent_offset;
+
+  // File pointer has already past the end of the file
+  if (curr_file_pointer.pointer >= curr_file_pointer.file_size) {
+    perror("end of file");
+    return TFS_EFO;
+  }
+
+  // buffer that stores the file extent contents
+  char TFS_buffer[BLOCKSIZE];
+
+  // end of data block for file pointer and there's still a data block, 
+  // change curr_file_extent_offset and next_file_extent_offset
+  if (curr_file_pointer.pointer >= FILE_EXTENT_DATA_LIMIT) {
+    int num_next = (int) (curr_file_pointer.pointer / FILE_EXTENT_DATA_LIMIT);
+    for (int i = 0; i < num_next; i++) {
+      if (next_fe_offset != -1) {
+        int disk_error;
+        if ((disk_error = readBlock(curr_fs_fd, next_fe_offset, TFS_buffer)) < 0) {
+          return disk_error;
+        }
+        curr_fe_offset = next_fe_offset;
+        next_fe_offset = ((file_extent *)TFS_buffer)->next_fe;
+      }
+    }
+  }
+
+  // read in the current file extent block
+  if ((disk_error = readBlock(curr_fs_fd, curr_fe_offset, TFS_buffer)) < 0) {
+    return disk_error;
+  }
+
+  // set the current data to the data from parameter
+  (((file_extent *)TFS_buffer)->data + pointer)[0] = data;
+
+  // write the byte into the current position
+  if (writeBlock(curr_fs_fd, curr_fe_offset, TFS_buffer) < 0) {
+    perror("Disk Write");
+    return -1;
+  }
+
+  // update the access_time in the inode and write back to file
+  if ((disk_error = readBlock(curr_fs_fd, curr_file_pointer.inode_offset, TFS_buffer)) < 0) {
+    return disk_error;
+  }
+  ((inode *)TFS_buffer)->access_time = time(NULL);
+  ((inode *)TFS_buffer)->modification_time = time(NULL); // change modification as well
+  if (writeBlock(curr_fs_fd, curr_file_pointer.inode_offset, TFS_buffer) < 0) {
+    perror("Disk Write");
+    return -1;
+  }
+  return 0;
+}
+
+int tfs_writeByte_offset(fileDescriptor FD, int offset, unsigned int data) {
+  /* a function that can write one byte to an exact position inside the file*/
+  
+  /* Note: this function uses the same structure as tfs_readByte */
+  file_pointer curr_file_pointer = file_descriptor_table[FD];
+  int pointer = curr_file_pointer.pointer % FILE_EXTENT_DATA_LIMIT;
+  int next_fe_offset = curr_file_pointer.next_file_extent_offset;
+  int curr_fe_offset = curr_file_pointer.curr_file_extent_offset;
+
+  // error out if it's trying to write more than the file_size
+  if (offset >= curr_file_pointer.file_size) {
+    perror("end of file");
+    return TFS_EFO;
+  }
+
+  // buffer that stores the file extent contents
+  char TFS_buffer[BLOCKSIZE];
+
+  // end of data block for file pointer and there's still a data block, 
+  // change curr_file_extent_offset and next_file_extent_offset
+  if (curr_file_pointer.pointer >= FILE_EXTENT_DATA_LIMIT) {
+    int num_next = (int) (offset / FILE_EXTENT_DATA_LIMIT);
+    for (int i = 0; i < num_next; i++) {
+      if (next_fe_offset != -1) {
+        int disk_error;
+        if ((disk_error = readBlock(curr_fs_fd, next_fe_offset, TFS_buffer)) < 0) {
+          return disk_error;
+        }
+        curr_fe_offset = next_fe_offset;
+        next_fe_offset = ((file_extent *)TFS_buffer)->next_fe;
+      }
+    }
+  }
+
+  // read in the current file extent block
+  if ((disk_error = readBlock(curr_fs_fd, curr_fe_offset, TFS_buffer)) < 0) {
+    return disk_error;
+  }
+
+  // set the current data to the data from parameter
+  (((file_extent *)TFS_buffer)->data + pointer)[0] = data;
+
+  // write the byte into the current position
+  if (writeBlock(curr_fs_fd, curr_fe_offset, TFS_buffer) < 0) {
+    perror("Disk Write");
+    return -1;
+  }
+
+
+
+  // update the access_time in the inode and write back to file
+  if ((disk_error = readBlock(curr_fs_fd, curr_file_pointer.inode_offset, TFS_buffer)) < 0) {
+    return disk_error;
+  }
+  ((inode *)TFS_buffer)->access_time = time(NULL);
+  ((inode *)TFS_buffer)->modification_time = time(NULL); // change modification as well
+  if (writeBlock(curr_fs_fd, curr_file_pointer.inode_offset, TFS_buffer) < 0) {
+    perror("Disk Write");
+    return -1;
+  }
+  return 0;
 }
