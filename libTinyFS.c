@@ -721,7 +721,7 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
   int curr_fe_offset = curr_file_pointer.curr_file_extent_offset;
 
   // File pointer has already past the end of the file
-  if (curr_file_pointer.pointer >= curr_file_pointer.file_size ) {
+  if (curr_file_pointer.pointer >= curr_file_pointer.file_size) {
     perror("end of file");
     return TFS_EFO;
   }
@@ -732,7 +732,7 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
   // end of data block for file pointer and there's still a data block, 
   // change curr_file_extent_offset and next_file_extent_offset
   if (curr_file_pointer.pointer >= FILE_EXTENT_DATA_LIMIT) {
-    int num_next = curr_file_pointer.pointer / FILE_EXTENT_DATA_LIMIT;
+    int num_next = (int) (curr_file_pointer.pointer / FILE_EXTENT_DATA_LIMIT);
     for (int i = 0; i < num_next; i++) {
       if (next_fe_offset != -1) {
         int disk_error;
@@ -741,7 +741,6 @@ int tfs_readByte(fileDescriptor FD, char *buffer) {
         }
         curr_fe_offset = next_fe_offset;
         next_fe_offset = ((file_extent *)TFS_buffer)->next_fe;
-        // printf("current_offset: %d, next_offset: %d\n", curr_fe_offset, next_fe_offset);
       }
     }
   }
@@ -794,36 +793,58 @@ int tfs_seek(fileDescriptor FD, int offset) {
     return OFFSET_FAIL;
   }
 
-  
-  
- 
   char TFS_buffer[BLOCKSIZE];
   // initially sets curr_file_extent_offset to the first extent
   // and next_file_extent_offset to the one after first extent
   int read_inode;
-  if ((read_inode = readBlock(FD, curr_file_pointer.inode_offset, TFS_buffer)) < 0) {
+
+  if ((read_inode = readBlock(curr_fs_fd, curr_file_pointer.inode_offset, TFS_buffer)) < 0) {
       return read_inode;
   }
   int curr_file_extent = ((inode*)TFS_buffer) -> first_file_extent;
-  if ((read_inode = readBlock(FD, curr_file_extent, TFS_buffer)) < 0) {
+  // printf("current file %d\n", curr_file_extent);
+  if ((read_inode = readBlock(curr_fs_fd, curr_file_extent, TFS_buffer)) < 0) {
       return read_inode;
   }
   int next_file_extent = ((file_extent *)TFS_buffer) -> next_fe;
+    // printf("next file %d\n", next_file_extent);
   // then, if offset is larger than one file extent, loop through the file extents 
   int page_offset = (int) (offset / FILE_EXTENT_DATA_LIMIT);
   for (int i = 0; i < page_offset; i++)
   {
     curr_file_extent = next_file_extent;
-    if ((read_inode = readBlock(FD, curr_file_extent, TFS_buffer)) < 0) {
+    if ((read_inode = readBlock(curr_fs_fd, curr_file_extent, TFS_buffer)) < 0) {
     return read_inode;
     }
     next_file_extent = ((file_extent *)TFS_buffer) -> next_fe;
   }
   //set pointer, fp's curr and next extent offset to the offset
-  curr_file_pointer.pointer = offset % FILE_EXTENT_DATA_LIMIT;
+  curr_file_pointer.pointer = offset;
   curr_file_pointer.curr_file_extent_offset = curr_file_extent;
   curr_file_pointer.next_file_extent_offset = next_file_extent;
+
+  file_descriptor_table[FD] = curr_file_pointer;
+
   return 0;
+}
+
+void print_file_content_offset(int FD) {
+  file_pointer curr_file_pointer = file_descriptor_table[FD];
+
+  int curr_file_extent = curr_file_pointer.curr_file_extent_offset;
+  int next_file_extent = curr_file_pointer.next_file_extent_offset;
+  char TFS_buffer[BLOCKSIZE];
+  int read_inode;
+
+  printf("curr_file_extent: %d\n", curr_file_extent);
+  while (curr_file_extent != -1) {
+    curr_file_extent = next_file_extent;
+    printf("file_extent: %d\n", curr_file_extent);
+    if ((read_inode = readBlock(curr_fs_fd, curr_file_extent, TFS_buffer)) < 0) {
+      return read_inode;
+    }
+    next_file_extent = ((file_extent *)TFS_buffer) -> next_fe;
+  }
 }
 
 

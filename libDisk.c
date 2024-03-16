@@ -103,7 +103,8 @@ int readBlock(int disk, int bNum, void *block) {
 
   // seeks to the logical number position on disk
   int byte_offset = bNum * BLOCKSIZE;
-
+  // printf("byte offset: %d\n", byte_offset);
+  // printf("maxFile: %d\n", max_file_size);
   if (max_file_size < byte_offset) {
     perror("Max File Size Limit");
     return -1;

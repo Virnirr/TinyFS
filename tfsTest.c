@@ -104,6 +104,7 @@ main ()
     {
       /* if yes, then just read and print the rest of afile that was already there */
       printf ("\n*** reading afile from TinyFS: \n%c", readBuffer);	/* print the first byte already read */
+
       /* now print the rest of it, byte by byte */
       while (tfs_readByte (aFD, &readBuffer) >= 0)	/* go until readByte fails */
 	printf ("%c", readBuffer);
@@ -145,6 +146,13 @@ main ()
   else
     {
       printf ("\n*** reading bfile from TinyFS: \n%c", readBuffer);
+      // printf("bFD: %d\n", bFD);
+      printf("BEFORE\n");
+      print_file_content_offset(bFD);
+      tfs_seek(bFD, 500); // only read 500 bytes
+      printf("AFTER\n");
+      print_file_content_offset(bFD);
+
       while (tfs_readByte (bFD, &readBuffer) >= 0)
 	printf ("%c", readBuffer);
 
