@@ -109,6 +109,8 @@ int readBlock(int disk, int bNum, void *block) {
     return -1;
   }
 
+  // printf("disk: %d, byte_offset: %d, seek_set: %d\n", disk, byte_offset, SEEK_SET);
+
   // read block position
   if (lseek(disk, byte_offset, SEEK_SET) < 0) {
     perror("lseek readBlock");

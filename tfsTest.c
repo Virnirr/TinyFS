@@ -108,6 +108,7 @@ main ()
       while (tfs_readByte (aFD, &readBuffer) >= 0)	/* go until readByte fails */
 	printf ("%c", readBuffer);
 
+      printf("\n");
       /* close file */
       if (tfs_closeFile (aFD) < 0)
 	perror ("tfs_closeFile failed");
@@ -118,7 +119,6 @@ main ()
 	  aFD = tfs_openFile ("afile");	/* so we open it again */
 	  if (tfs_deleteFile (aFD) < 0)
 	    perror ("tfs_deleteFile failed");
-
 	}
       else
 	perror ("tfs_deleteFile should have failed");
@@ -148,6 +148,7 @@ main ()
       while (tfs_readByte (bFD, &readBuffer) >= 0)
 	printf ("%c", readBuffer);
 
+      printf("\n");
       tfs_deleteFile (bFD);
     }
 

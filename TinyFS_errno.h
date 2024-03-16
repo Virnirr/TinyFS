@@ -27,3 +27,4 @@
 #define LIMIT_REACHED -15
 
 #define EOPENFILE -16
+#define EFILENAME -17
