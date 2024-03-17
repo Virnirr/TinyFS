@@ -889,7 +889,7 @@ time_t tfs_readFileInfo(fileDescriptor FD) {
   }
   //grabbing inode buffer   
   char TFS_buffer[BLOCKSIZE];
-  if ((disk_error = readBlock(FD, fd_file_pointer.inode_offset, TFS_buffer)) < 0) {
+  if ((disk_error = readBlock(curr_fs_fd, fd_file_pointer.inode_offset, TFS_buffer)) < 0) {
     return disk_error;
   }
   //reading the creation time at it's location in inode 
@@ -899,7 +899,7 @@ time_t tfs_readFileInfo(fileDescriptor FD) {
   // changing accessed time to now, and writing it back
   time_t now = time(NULL);
   memcpy(TFS_buffer + 24, &now, sizeof(time_t));
-  if ((disk_error = writeBlock(FD, fd_file_pointer.inode_offset, TFS_buffer)) < 0) {
+  if ((disk_error = writeBlock(curr_fs_fd, fd_file_pointer.inode_offset, TFS_buffer)) < 0) {
     return disk_error;
   }
   //returning creation time
@@ -916,6 +916,12 @@ int tfs_rename(fileDescriptor FD, char* newName) {
   if (fp.pointer == -1) {
     perror("unopened file");
     return EBADF;
+  }
+
+  // error if no name or name is less than FILENAME_SIZE
+  if (!newName || strlen(newName) > FILENAME_SIZE - 1) {
+    perror("invalid name");
+    return EFILENAME;
   }
   // get inode from disk
   char TFS_buffer[BLOCKSIZE];

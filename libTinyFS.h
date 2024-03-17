@@ -151,6 +151,7 @@ void tfs_readdir(void);
 list to stdout -- Note: if you don’t have hierarchical directories, this just reads
 the root directory aka “all files” */
 // int print_file_content_offset(int FD);
+time_t tfs_readFileInfo(fileDescriptor FD);
 int tfs_makeRO(char *name);
 int tfs_makeRW(char *name);
 int tfs_writeByte(fileDescriptor FD, unsigned int data);

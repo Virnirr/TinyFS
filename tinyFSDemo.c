@@ -3,6 +3,7 @@
 #include <assert.h> // unit test
 /* usage void assert(scalar expression); */
 #include <string.h>
+#include <time.h>
 #include "TinyFS_errno.h"
 #include "libDisk.h"
 
@@ -13,6 +14,8 @@ void tiny_fs_test_2();
 void tiny_fs_test_3();
 void tiny_fs_test_4();
 void tiny_fs_test_5();
+void tiny_fs_test_6();
+void tiny_fs_test_7();
 
 /* simple helper function to fill Buffer with as many inPhrase strings as possible before reaching size */
 int
@@ -41,6 +44,8 @@ int main() {
 
   tiny_fs_test_1(diskName);
   tiny_fs_test_2();
+  tiny_fs_test_6();
+  tiny_fs_test_7();
 
   printf("\n--------------------------------------------COMPLETE ALL DEMO------------------------------------------------\n");
 
@@ -250,4 +255,79 @@ void tiny_fs_test_5() {
 
   printf("---------------------------- Demo 4: Complete ----------------------------");
 
+}
+
+void tiny_fs_test_6() {
+  /* Testing timestamp, and directory listing and file renaming features  */
+  printf("----------------------- DEMO 3: Timestamp, Directory Listing, and Renaming Files -----------------------\n\n");
+  char *aTestFile = "afile", *bTestFile = "bfile";	/* buffers to store file content */
+  int aFD, bFD;
+  time_t aTime, bTime;
+  printf("DEMO 3-0: Attemping make default disk: %s\n", DEFAULT_DISK_NAME);
+
+  if(tfs_mkfs (DEFAULT_DISK_NAME, DEFAULT_DISK_SIZE) < 0) {
+    perror("tfs_mkds");
+  }
+  else {
+    printf("DEMO 3: SUCCESSFULLY Created Disk: %s\n", DEFAULT_DISK_NAME);
+  }
+
+  if (tfs_mount (DEFAULT_DISK_NAME) < 0) {
+    perror("tfs_mount");
+  }
+  else {
+    printf("DEMO 3: Successfully mounted %s\n", DEFAULT_DISK_NAME);
+  }
+
+  printf("DEMO 3-1: Attemping to open file: %s\n", aTestFile);
+
+  if((aFD = tfs_openFile(aTestFile)) < 0) {
+    printf("DEMO 3: FAILED TO OPEN FILE. This should not happen\n");
+  }
+  else {
+    printf("DEMO 3: SUCCESSFULLY OPENED FILE: %s\n", aTestFile);
+  }
+  
+  printf("DEMO 3-1: Now printing the creation date of file: %s\n", aTestFile);
+
+  if((aTime = tfs_readFileInfo(aFD)) < 0) {
+    printf("DEMO 3: FAILED TO GET CREATION TIME. error code: %d\n", (int) aTime);
+  }
+  else {
+    printf("DEMO 3: CREATION TIME OF %s: %s\n", aTestFile, ctime(&aTime));
+  }
+  printf("DEMO 3-1: Attemping to open file: %s\n", aTestFile);
+
+
+  printf("DEMO 3-1: Now sleeping 1 second, then creating another file called bfile and checking the creation date for that\n");
+  sleep(1);
+  if((bFD = tfs_openFile(bTestFile)) < 0) {
+    printf("DEMO 3: FAILED TO OPEN FILE. This should not happen\n");
+  }
+  else {
+    printf("DEMO 3: SUCCESSFULLY OPENED FILE: %s\n", bTestFile);
+  }
+  
+  printf("DEMO 3-1: Now printing the creation date of file: %s\n", bTestFile);
+
+  if((bTime = tfs_readFileInfo(bFD)) < 0) {
+    printf("DEMO 3: FAILED TO GET CREATION TIME. error code: %d\n", (int) bTime);
+  }
+  else {
+    printf("DEMO 3: CREATION TIME OF %s: %s\n", bTestFile, ctime(&bTime));
+  }
+
+  printf("DEMO 3-2: After creating afile and bfile, now listing the directories\n");
+  tfs_readdir();
+  printf("DEMO 3-3: renaming afile to cfile, now listing the directories\n");
+  tfs_rename(aFD, "cfile");
+  tfs_readdir();
+}
+
+void tiny_fs_test_7() {
+  /* Testing read-only and writebyte features  */
+  printf("----------------------- DEMO 4: Read-Only files, Writebyte and Mount Consistency Checks-----------------------\n\n");
+
+  
+  
 }
