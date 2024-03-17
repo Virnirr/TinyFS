@@ -24,9 +24,21 @@ Overall, our TinyFS implementation worked great with extensive testing in our de
 
 The additional functions we decided on are:
 1. Directory listing and file renaming
-2. Read-only and writeByte support: Initially, all the writes (writeFile, writeByte, writeByte_offset) work since the files are read-write by default. After changing it to read-only, all of them fail. And changing it back makes them work once again.
+
+Directory listing works by going through the whole TinyFS and listing any regular file's name. File renaming goes through the whole TinyFS and changes the name of the file.
+
+2. Read-only and writeByte support
+
+Initially, all the writes (writeFile, writeByte, writeByte_offset) work since the files are read-write by default. After changing it to read-only, all of them fail. And changing it back makes them work once again.
+
 3. Timestamps
-4. Implement file system consistency checks: A newly created filesystem is able to be mounted. However, after we corrupt the superblock by overwriting it with whatever junk values are initialized by a buffer, the mount fails. This is a rather simple test for our complete implementation, but we weren't sure how else to test it. We also made sure that each block had the correct structure and values (i.e. block type, null in rest, etc.), each next free block was actually a free block, each file extent was a file extent, and the total blocks added up to the correct value. 
+
+For timestamps, we created a file and displayed its creation time, then slept for 1 second and created another file after it and displayed its creation time.
+
+
+4. Implement file system consistency checks:
+
+A newly created filesystem is able to be mounted. However, after we corrupt the superblock by overwriting it with whatever junk values are initialized by a buffer, the mount fails. This is a rather simple test for our complete implementation, but we weren't sure how else to test it. We also made sure that each block had the correct structure and values (i.e. block type, null in rest, etc.), each next free block was actually a free block, each file extent was a file extent, and the total blocks added up to the correct value. 
 
 Similar to the MVP interface of TinyFS, additional features have a suit of testing in our tinyFSDemo.c that shows how it works and why it works.
 
