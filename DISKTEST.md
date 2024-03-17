@@ -1,9 +1,3 @@
-Name: Zhixiang He, Sean Phun, Dennis Phun
-
-TinyFS is a very simple file system. It is purposefully under-specified, giving you the freedom to
-implement it using many of the algorithms and primitives you’ve learned throughout this course.
-TinyFS does not support a hierarchical namespace, i.e. there are no directories beyond the root
-directory, and all the files are in a flat namespace. 
 
 # Get how big a filesize is:
 ```console
@@ -118,5 +112,3 @@ Clean test
 ```
 make cleanTest
 ```
-
-something
