@@ -5,7 +5,7 @@ DTEST = diskTest
 
 DOBJS = libDisk.o
 
-OBJS = libTinyFS.o libDisk.o tinyFsDemo.o diskTest.o tfsTest.o
+OBJS = libTinyFS.o libDisk.o tinyFsDemo.o
 
 $(PROG): $(OBJS)
 	$(CC) $(CFLAGS) -o $(PROG) $(OBJS)
@@ -30,5 +30,4 @@ libDisk.o: libDisk.c libDisk.h libTinyFS.h TinyFS_errno.h
 
 clean:	
 	rm -f $(OBJS) *~ TAGS
-	rm tinyFSDemo
-	rm *.dsk
+	rm tinyFSDemo diskX.dsk second_disk tinyFSDisk

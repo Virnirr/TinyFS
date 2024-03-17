@@ -560,6 +560,13 @@ file’s content, to the file system.  */
     return -1;
   }
 
+  // update file pointer:
+
+  file_descriptor_table[FD].curr_file_extent_offset = free_block_offset;
+  file_descriptor_table[FD].file_size = size;
+
+  int check_first = 0;
+
   file_extent *head_fe;
   file_extent *curr_fe;
   file_extent *prev_fe;
@@ -620,6 +627,12 @@ file’s content, to the file system.  */
 
     // get new free file extente
     free_block_offset = remove_next_free_and_set_free_after_it();
+
+    // this is to update the file pointer the first time of the next pointer
+    if (!check_first) {
+      file_descriptor_table[FD].next_file_extent_offset = free_block_offset;
+      check_first = 1;
+    }
 
     if (free_block_offset < 0) {
       return LIMIT_REACHED;
@@ -725,7 +738,6 @@ int tfs_deleteFile(fileDescriptor FD) {
 int tfs_readByte(fileDescriptor FD, char *buffer) {
   /* reads one byte from the file and copies it to buffer, using the
   current file pointer location and incrementing it by one upon success. */
-
   file_pointer curr_file_pointer = file_descriptor_table[FD];
   int pointer = curr_file_pointer.pointer % FILE_EXTENT_DATA_LIMIT;
   int next_fe_offset = curr_file_pointer.next_file_extent_offset;
@@ -839,6 +851,7 @@ int tfs_seek(fileDescriptor FD, int offset) {
   return 0;
 }
 
+/* This code commented out was for testing before. commenting out just in case if you need it to find the whole file content points. */
 // int print_file_content_offset(int FD) {
 //   file_pointer curr_file_pointer = file_descriptor_table[FD];
 

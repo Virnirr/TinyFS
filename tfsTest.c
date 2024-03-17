@@ -29,7 +29,7 @@ fillBufferWithPhrase (char *inPhrase, char *Buffer, int size)
 
 /* This program will create 2 files (of sizes 200 and 1000) to be read from or stored in the TinyFS file system. */
 int
-tfsTest ()
+main ()
 {
   char readBuffer;
   char *afileContent, *bfileContent;	/* buffers to store file content */
