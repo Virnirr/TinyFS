@@ -310,7 +310,9 @@ int tfs_mount(char *diskname) {
 
   /* ------------ included in the additional feature part h. to check for consistencies ----------------*/
   // check every block to make sure it is compliant to TinyFS
-  for (tinyfs_offset_idx = 0; tinyfs_offset_idx < (max_file_size / BLOCKSIZE); tinyfs_offset_idx++) {
+  int size = max_file_size / BLOCKSIZE;
+  int count = 0;
+  for (tinyfs_offset_idx = 0; tinyfs_offset_idx < size; tinyfs_offset_idx++) {
     if (readBlock(disk_fd, tinyfs_offset_idx, TFS_buffer) < 0) {
       return READBLOCK_FAIL;
     }
@@ -318,6 +320,93 @@ int tfs_mount(char *diskname) {
     if (TFS_buffer[MAGIC_IDX] != MAGIC_NUM) {
       return NOT_A_FILE_SYSTEM;
     }
+    // if superblock
+    if (tinyfs_offset_idx == 0) {
+      count++;
+      // check block type
+      if (((superblock *)TFS_buffer)->block_type != SB_CODE) {
+        return NOT_A_FILE_SYSTEM;
+      }
+      // check rest nulled out
+      for (int i = 0; i < REST_OF_SB; i++) {
+        if (((superblock *)TFS_buffer)->rest[i] != '\0') {
+          return NOT_A_FILE_SYSTEM;
+        }
+      }
+      int root_addr = ((superblock *)TFS_buffer)->address_of_root;
+      int fb_addr = ((superblock *)TFS_buffer)->next_free_block;
+      
+      // check root
+      if (readBlock(disk_fd, root_addr, TFS_buffer) < 0) {
+        return READBLOCK_FAIL;
+      }
+      // check block type, file type, and file name
+      if (((inode *)TFS_buffer)->block_type != INODE_CODE ||
+          ((inode *)TFS_buffer)->file_type != DIR_CODE ||
+          strcmp(((inode *)TFS_buffer)->filename, "root") != 0) {
+        return NOT_A_FILE_SYSTEM;
+      }
+      // check rest nulled out
+      for (int i = 0; i < REST_OF_INODE; i++) {
+        if (((inode *)TFS_buffer)->rest[i] != 0) {
+          return NOT_A_FILE_SYSTEM;
+        }
+      }
+
+      // check free blocks
+      while (fb_addr != -1) {
+        count++;
+        if (readBlock(disk_fd, fb_addr, TFS_buffer) < 0) {
+          return READBLOCK_FAIL;
+        }
+        // check block type
+        if (((free_block *)TFS_buffer)->block_type != FB_CODE) {
+          return NOT_A_FILE_SYSTEM;
+        }
+        // check rest nulled out
+        for (int i = 0; i < REST_OF_FB; i++) {
+          if (((free_block *)TFS_buffer)->rest[i] != '\0') {
+            return NOT_A_FILE_SYSTEM;
+          }
+        }
+        // go to next
+        fb_addr = ((free_block *)TFS_buffer)->next_fb;
+      }
+    }
+    // if inode
+    else if (TFS_buffer[0] == INODE_CODE) {
+      count++;
+      // check block and file types
+      if (((inode *)TFS_buffer)->block_type != INODE_CODE ||
+          (((inode *)TFS_buffer)->file_type != DIR_CODE && ((inode *)TFS_buffer)->file_type != FILE_CODE)) {
+        return NOT_A_FILE_SYSTEM;
+      }
+      // check rest
+      for (int i = 0; i < REST_OF_INODE; i++) {
+        if (((inode *)TFS_buffer)->rest[i] != 0) {
+          return NOT_A_FILE_SYSTEM;
+        }
+      }
+      // check file extents
+      int fe_addr = ((inode *)TFS_buffer)->first_file_extent;
+      while (fe_addr != -1) {
+        count++;
+        // get file extent
+        if (readBlock(disk_fd, fe_addr, TFS_buffer) < 0) {
+          return READBLOCK_FAIL;
+        }
+        // check block type
+        if (((file_extent *)TFS_buffer)->block_type != FE_CODE) {
+          return NOT_A_FILE_SYSTEM;
+        }
+        // get next
+        fe_addr = ((file_extent *)TFS_buffer)->next_fe;
+      }
+    }
+  }
+  // if the superblock, inodes, file extents, and free blocks do not add up to the correct size
+  if (size != count) {
+    return NOT_A_FILE_SYSTEM;
   }
   /* ------------ included in the additional feature part h. to check for consistencies ----------------*/
 
