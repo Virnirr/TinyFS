@@ -126,7 +126,7 @@ void tiny_fs_test_1(char *disk_name) {
 
 
 void tiny_fs_test_2() {
-  /* Testing Opening, Reading, Writing, Deleting, and Seeking Files */
+  /* Testing Opening, Reading, Writing, Closing, Deleting, and Seeking Files */
   printf("----------------------- DEMO 2: Opening and Deleting Files -----------------------\n\n");
   char *aTestFile = "afile", *bTestFile = "bfile";	/* buffers to store file content */
   char aContent[200] = "Lorem ipsum dolor sit amet consectetur adipiscing elit varius tincidunt nulla pharetra, imperdiet eget lectus class libero vestibulum platea magnis aptent egestas. Euismod natoque dis inceptos imper";
@@ -224,6 +224,45 @@ void tiny_fs_test_2() {
   fflush(stdout);
   
   printf("\n\n-------------------------------\n\n");
+
+  printf("DEMO 2-4: Attempting to close file %s\n", bTestFile);
+
+  if (tfs_closeFile(aFD) < 0)
+	{
+	  perror ("tfs_writeFile failed");
+	}
+  else {
+    printf("DEMO 2: SUCCESSFULLY CLOSED %s\n", aTestFile);
+  }
+
+  printf("DEMO 2-6: Attempting to read from closed file %s\n", aTestFile);
+
+  if (tfs_readByte(aFD, &readBuffer) < 0) {
+    printf("DEMO 2: SUCCESSFULLY error after reading closed file: %s\n", aTestFile);
+  }
+  else {
+    printf("THIS SHOULD NOT HAPPEN FROM READ CLOSE FILE\n");
+  }
+
+  printf("DEMO 2-7: Attemping to write to closed file %s\n", aTestFile);
+
+  if ((tfs_writeFile(aFD, aContent, 200)) < 0)
+	{
+	  printf("DEMO 2: SUCCESSFULLY Errored from writing to closed file\n");
+	}
+  else {
+    printf("WRITING TO CLOSED FILE SHOULD NOT REACH HERE\n");
+  }
+
+  printf("DEMO 2-8: Attemping to delete file %s\n", bTestFile);
+
+  if ((tfs_deleteFile(bFD)) < 0)
+	{
+    printf("ERROR OUT FROM delete File");
+	}
+  else {
+	  printf("DEMO 2: SUCCESSFULLY DELETED FILE %s\n", bTestFile);
+  }
 
 
   printf("DEMO 2 COMPLETE\n\n");
