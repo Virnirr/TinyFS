@@ -14,8 +14,6 @@ void tiny_fs_test_2();
 void tiny_fs_test_3();
 void tiny_fs_test_4();
 void tiny_fs_test_5();
-void tiny_fs_test_6();
-void tiny_fs_test_7();
 
 /* simple helper function to fill Buffer with as many inPhrase strings as possible before reaching size */
 int
@@ -44,8 +42,9 @@ int main() {
 
   tiny_fs_test_1(diskName);
   tiny_fs_test_2();
-  tiny_fs_test_6();
-  tiny_fs_test_7();
+  tiny_fs_test_3();
+  tiny_fs_test_4();
+  tiny_fs_test_5();
 
   printf("\n--------------------------------------------COMPLETE ALL DEMO------------------------------------------------\n");
 
@@ -58,7 +57,7 @@ void tiny_fs_test_1(char *disk_name) {
   char *test_disk_file = "second_disk";
   printf("----------------------- Demo 1: Testing File, Mounting, and Unmounting -----------------------\n\n");
 
-  printf("Demo 1-1: Attemping to creating file: %s\n", disk_name);
+  printf("Demo 1-1: Attempting to create file: %s\n", disk_name);
 
   if ((disk_err = tfs_mkfs(disk_name, DEFAULT_DISK_SIZE)) < 0) {
     // this should not fail
@@ -68,7 +67,7 @@ void tiny_fs_test_1(char *disk_name) {
     printf("Successfully created TINYFS %s with error code '%d'\n", disk_name, disk_err);
   }
 
-  printf("Demo 1-2: Attemping to creating file: %s\n", test_disk_file);
+  printf("Demo 1-2: Attempting to create file: %s\n", test_disk_file);
 
   // creating second disk to test mount and unmount
   if ((disk_err = tfs_mkfs(test_disk_file, DEFAULT_DISK_SIZE)) < 0) {
@@ -79,7 +78,7 @@ void tiny_fs_test_1(char *disk_name) {
     printf("DEMO 1: Successfully created TINYFS %s with error code '%d'\n", disk_name, disk_err);
   }
 
-  printf("Demo 1-3: Attemping to mount file: %s\n", disk_name);
+  printf("Demo 1-3: Attempting to mount file: %s\n", disk_name);
 
   if ((disk_err = tfs_mount(disk_name)) < 0) {
     printf("DEMO: Failed to Mount file. This should not have happened");
@@ -88,7 +87,7 @@ void tiny_fs_test_1(char *disk_name) {
     printf("Demo 1: Successfully Mounted: %s\n", disk_name);
   }
 
-  printf("Demo 1-4: Attemping to unmount file: %s\n", disk_name);
+  printf("Demo 1-4: Attempting to unmount file: %s\n", disk_name);
   
   if ((disk_err = tfs_unmount()) < 0) {
     printf("DEMO: Failed to unmount file. This should not have happened");
@@ -97,7 +96,7 @@ void tiny_fs_test_1(char *disk_name) {
     printf("DEMO 1: Successfully Unmounted: %s\n", disk_name);
   }
 
-  printf("Demo 1-5: Attemping to unmount no files\n");
+  printf("Demo 1-5: Attempting to unmount no files\n");
 
   if ((disk_err = tfs_unmount()) < 0) {
     printf("DEMO 1: Successfully Failed\n");
@@ -106,7 +105,7 @@ void tiny_fs_test_1(char *disk_name) {
     printf("Failed to fail out of unmount\n");
   }
 
-  printf("Demo 1-6: Attemping to Mount file after another file\n");
+  printf("Demo 1-6: Attempting to Mount file after another file\n");
 
   if ((disk_err = tfs_mount(disk_name)) < 0) {
     printf("DEMO: Failed to Mount file. This should not have happened");
@@ -134,7 +133,7 @@ void tiny_fs_test_2() {
   char bContent[1000] = "Lorem ipsum dolor sit amet consectetur adipiscing elit praesent purus sed, feugiat fames suscipit tincidunt nisi potenti vel porta dignissim venenatis senectus, mauris ut integer at hac netus curabitur rutrum pellentesque. Purus ligula accumsan phasellus mus nostra integer vestibulum, lacinia aptent mauris velit massa lectus, curae per gravida eleifend tincidunt netus. Erat ullamcorper penatibus maecenas lobortis justo massa fames, dignissim cum nibh viverra sollicitudin convallis, tortor ut porttitor faucibus sem egestas. Sociosqu volutpat conubia metus dignissim dictum nulla porta tortor magnis fermentum gravida vulputate curae, class quam curabitur condimentum nostra neque aptent primis urna proin rhoncus. Aenean ornare odio feugiat donec erat sem dignissim senectus natoque vivamus pharetra, non sapien faucibus arcu vehicula eleifend litora etiam mattis ultrices, vestibulum velit augue nascetur mus nunc a nisi blandit tempor. Iaculis potenti class leo porta volutpat tempus id scele.";
   int aFD, bFD;
 
-  printf("DEMO 2-0: Attemping make default disk: %s\n", DEFAULT_DISK_NAME);
+  printf("DEMO 2-0: Attempting make default disk: %s\n", DEFAULT_DISK_NAME);
 
   if(tfs_mkfs (DEFAULT_DISK_NAME, DEFAULT_DISK_SIZE) < 0) {
     perror("tfs_mkds");
@@ -150,7 +149,7 @@ void tiny_fs_test_2() {
     printf("DEMO 2: Successfully mounted %s\n", DEFAULT_DISK_NAME);
   }
 
-  printf("DEMO 2-1: Attemping to open file: %s\n", aTestFile);
+  printf("DEMO 2-1: Attempting to open file: %s\n", aTestFile);
 
   if((aFD = tfs_openFile(aTestFile)) < 0) {
     printf("DEMO 2: FAILED TO OPEN FILE. This should not happen\n");
@@ -159,7 +158,7 @@ void tiny_fs_test_2() {
     printf("DEMO 2: SUCCESSFULLY OPENED FILE: %s\n", aTestFile);
   }
 
-  printf("DEMO 2-1: Attemping to open file: %s\n", bTestFile);
+  printf("DEMO 2-1: Attempting to open file: %s\n", bTestFile);
 
   if((bFD = tfs_openFile(bTestFile)) < 0) {
     printf("DEMO 2: FAILED TO OPEN FILE. This should not happen\n");
@@ -168,7 +167,7 @@ void tiny_fs_test_2() {
     printf("DEMO 2: SUCCESSFULLY OPENED FILE: %s\n", bTestFile);
   }
   
-  printf("DEMO 2-2: Attemping to write 200 bytes to %s\n", aTestFile);
+  printf("DEMO 2-2: Attempting to write 200 bytes to %s\n", aTestFile);
 
   if (tfs_writeFile(aFD, aContent, 200) < 0)
 	{
@@ -178,7 +177,7 @@ void tiny_fs_test_2() {
     printf("DEMO 2: SUCCESSFULLY WRITTEN 200 bytes into %s\n", aTestFile);
   }
 
-  printf("DEMO 2-2: Attemping to write 1000 bytes to %s\n", bTestFile);
+  printf("DEMO 2-2: Attempting to write 1000 bytes to %s\n", bTestFile);
 
   if (tfs_writeFile(bFD, bContent, 1000) < 0)
 	{
@@ -188,7 +187,7 @@ void tiny_fs_test_2() {
     printf("DEMO 2: SUCCESSFULLY WRITTEN 1000 bytes into %s\n", bTestFile);
   }
 
-  printf("DEMO 2-3: Attemping to read 200 bytes from %s\n", aTestFile);
+  printf("DEMO 2-3: Attempting to read 200 bytes from %s\n", aTestFile);
 
 
   char readBuffer;
@@ -201,7 +200,7 @@ void tiny_fs_test_2() {
 
   printf("\n\n-------------------------------\n\n");
 
-  printf("DEMO 2-3: Attemping to read 1000 bytes from %s\n", bTestFile);
+  printf("DEMO 2-3: Attempting to read 1000 bytes from %s\n", bTestFile);
 
   printf("-------------------------------\n\n");
   /* now print the rest of it, byte by byte */
@@ -213,7 +212,7 @@ void tiny_fs_test_2() {
   
   printf("\n\n-------------------------------\n\n");
 
-  printf("DEMO 2-3: Attemping to read 500 bytes with tfs_seek from %s\n", bTestFile);
+  printf("DEMO 2-3: Attempting to read 500 bytes with tfs_seek from %s\n", bTestFile);
 
   printf("-------------------------------\n\n");
   /* now print the rest of it, byte by byte */
@@ -232,38 +231,12 @@ void tiny_fs_test_2() {
 }
 
 void tiny_fs_test_3() {
-  /* Testing reading and writing to files */
-
-  
-  
-}
-
-void tiny_fs_test_4() {
-
-  /* Testing opening and closing file functionality */
-
-
-}
-
-void tiny_fs_test_5() {
-
-  /* Testing default writing and reading (i.e. Fooad's test)*/
-
-  printf("---------------------------- Demo 4: Writing and Reading in TinyFS ----------------------------");
-
-  
-
-  printf("---------------------------- Demo 4: Complete ----------------------------");
-
-}
-
-void tiny_fs_test_6() {
   /* Testing timestamp, and directory listing and file renaming features  */
   printf("----------------------- DEMO 3: Timestamp, Directory Listing, and Renaming Files -----------------------\n\n");
   char *aTestFile = "afile", *bTestFile = "bfile";	/* buffers to store file content */
   int aFD, bFD;
   time_t aTime, bTime;
-  printf("DEMO 3-0: Attemping make default disk: %s\n", DEFAULT_DISK_NAME);
+  printf("DEMO 3-0: Attempting make default disk: %s\n", DEFAULT_DISK_NAME);
 
   if(tfs_mkfs (DEFAULT_DISK_NAME, DEFAULT_DISK_SIZE) < 0) {
     perror("tfs_mkds");
@@ -279,7 +252,7 @@ void tiny_fs_test_6() {
     printf("DEMO 3: Successfully mounted %s\n", DEFAULT_DISK_NAME);
   }
 
-  printf("DEMO 3-1: Attemping to open file: %s\n", aTestFile);
+  printf("DEMO 3-1: Attempting to open file: %s\n", aTestFile);
 
   if((aFD = tfs_openFile(aTestFile)) < 0) {
     printf("DEMO 3: FAILED TO OPEN FILE. This should not happen\n");
@@ -296,7 +269,7 @@ void tiny_fs_test_6() {
   else {
     printf("DEMO 3: CREATION TIME OF %s: %s\n", aTestFile, ctime(&aTime));
   }
-  printf("DEMO 3-1: Attemping to open file: %s\n", aTestFile);
+  printf("DEMO 3-1: Attempting to open file: %s\n", aTestFile);
 
 
   printf("DEMO 3-1: Now sleeping 1 second, then creating another file called bfile and checking the creation date for that\n");
@@ -324,10 +297,226 @@ void tiny_fs_test_6() {
   tfs_readdir();
 }
 
-void tiny_fs_test_7() {
+void tiny_fs_test_4() {
   /* Testing read-only and writebyte features  */
-  printf("----------------------- DEMO 4: Read-Only files, Writebyte and Mount Consistency Checks-----------------------\n\n");
-
+  char *aTestFile = "cfile";
+  char aContent[200] = "Lorem ipsum dolor sit amet consectetur adipiscing elit varius tincidunt nulla pharetra, imperdiet eget lectus class libero vestibulum platea magnis aptent egestas. Euismod natoque dis inceptos imper";
+  char aContent2[5] = "hello";
+  int aFD;
+  printf("----------------------- DEMO 4: Read-Only files and Writebyte-----------------------\n\n");
   
+  printf("DEMO 4-0: List the available files\n");
+  tfs_readdir();
+  printf("DEMO 4-0: Attempting to open file: %s\n", aTestFile);
+
+  if((aFD = tfs_openFile(aTestFile)) < 0) {
+    printf("DEMO 4: FAILED TO OPEN FILE. This should not happen\n");
+  }
+  else {
+    printf("DEMO 4: SUCCESSFULLY OPENED FILE: %s\n", aTestFile);
+  }
+
+  printf("DEMO 4-1: Attempting to write 200 bytes to %s (default RW, should work)\n", aTestFile);
+
+  if (tfs_writeFile(aFD, aContent, 200) < 0)
+	{
+	  perror ("tfs_writeFile failed");
+	}
+  else {
+    printf("DEMO 2: SUCCESSFULLY WRITTEN 200 BYTES INTO %s\n", aTestFile);
+  }
+
+  printf("DEMO 4-1: Reading 200 bytes from %s\n", aTestFile);
+
+  char readBuffer;
+  printf("-------------------------------\n\n");
+  /* now print the rest of it, byte by byte */
+  while (tfs_readByte (aFD, &readBuffer) >= 0){	/* go until readByte fails */
+    printf ("%c", readBuffer);
+  }
+  fflush(stdout);
+
+  printf("\n\n-------------------------------\n\n");
+
+  printf("DEMO 4-2: Setting the pointer to the beginning of the file and writing an 'a'\n");  
+  tfs_seek(aFD, SEEK_SET);
+  if (tfs_writeByte(aFD, 'a') < 0) {
+    perror("DEMO 4: tfs_writeByte failed");
+  } else {
+    printf("DEMO 4: SUCESSFULLY WROTE 'a' TO BEGINNING OF %s\n", aTestFile);
+  }
+
+  printf("DEMO 4-2: Reading 200 bytes from %s\n", aTestFile);
+
+  printf("-------------------------------\n\n");
+  /* now print the rest of it, byte by byte */
+  while (tfs_readByte (aFD, &readBuffer) >= 0){	/* go until readByte fails */
+    printf ("%c", readBuffer);
+  }
+  fflush(stdout);
+
+  printf("\n\n-------------------------------\n\n");
+
+  printf("DEMO 4-3: Writing a 'b' to the 5th byte of the file\n");
+  if (tfs_writeByte_offset(aFD, 5, 'b') < 0) {
+    perror("DEMO 4: tfs_writeByte_offset failed");
+  } else {
+    printf("DEMO 4: SUCESSFULLY WROTE 'b' TO THE FIFTH BYTE OF %s\n", aTestFile);
+  }
+
+  printf("DEMO 4-3: Reading 200 bytes from %s\n", aTestFile);
+  tfs_seek(aFD, SEEK_SET);
+  printf("-------------------------------\n\n");
+  /* now print the rest of it, byte by byte */
+  while (tfs_readByte (aFD, &readBuffer) >= 0){	/* go until readByte fails */
+    printf ("%c", readBuffer);
+  }
+  fflush(stdout);
+
+  printf("\n\n-------------------------------\n\n");
+
+  printf("DEMO 4-4: Making %s read only\n", aTestFile);
+  if (tfs_makeRO(aTestFile) < 0) {
+    perror("tfs_makeRO failed");
+  }
+  else {
+    printf("DEMO 4: SUCCESSFULLY CHANGED %s TO READ ONLY\n", aTestFile);
+  }
+
+  printf("DEMO 4-4: Attempting to write to %s with tfs_writeFile \n", aTestFile);
+
+  if (tfs_writeFile(aFD, aContent2, 5) < 0)
+	{
+	  printf("DEMO 4: tfs_writeFile failed\n");
+	}
+  else {
+    printf("DEMO 4: tfs_writeFile success, shouldn't happen\n");
+  }
+
+  printf("DEMO 4-4: Attempting to write to %s with tfs_writeByte \n", aTestFile);
+
+  if (tfs_writeByte(aFD, 'a') < 0) {
+    printf("DEMO 4: tfs_writeByte failed\n");
+  }
+  else {
+    printf("DEMO 4: tfs_writeByte success, shouldn't happen\n");
+  }
+
+  printf("DEMO 4-4: Attempting to write to %s with tfs_writeByte_offset \n", aTestFile);
+  if (tfs_writeByte_offset(aFD, 5, 'b') < 0) {
+    printf("DEMO 4: tfs_writeByte_offset failed\n");
+  } else {
+    printf("DEMO 4: tfs_writeByte_offset success, shouldn't happen\n");
+  }
+
+  printf("DEMO 4-4: Reading 200 bytes from %s to make sure nothing changed\n", aTestFile);
+  tfs_seek(aFD, SEEK_SET);
+  printf("-------------------------------\n\n");
+  /* now print the rest of it, byte by byte */
+  while (tfs_readByte (aFD, &readBuffer) >= 0){	/* go until readByte fails */
+    printf ("%c", readBuffer);
+  }
+  fflush(stdout);
+
+  printf("\n\n-------------------------------\n\n");
+
+  printf("DEMO 4-5: Making %s read write again\n", aTestFile);
+  if (tfs_makeRW(aTestFile) < 0) {
+    perror("tfs_makeRW failed");
+  }
+  else {
+    printf("DEMO 4: SUCCESSFULLY CHANGED %s TO READ WRITE\n", aTestFile);
+  }
+
+  printf("DEMO 4-5: Attempting to write to %s with tfs_writeFile \n", aTestFile);
+
+  tfs_seek(aFD, SEEK_SET);
+  if (tfs_writeFile(aFD, aContent2, 5) < 0)
+	{
+	  perror("DEMO 4: tfs_writeFile failed");
+	}
+  else {
+    printf("DEMO 4: Successfully wrote '%s' to the beginning of %s\n", aContent2, aTestFile);
+  }
+
+  printf("DEMO 4-5: Attempting to write to %s with tfs_writeByte \n", aTestFile);
+
+  tfs_seek(aFD, SEEK_SET);
+  if (tfs_writeByte(aFD, 'h') < 0) {
+    perror("DEMO 4: tfs_writeByte failed");
+  }
+  else {
+    printf("DEMO 4: Successfully wrote 'h' to the beginning of %s\n", aTestFile);
+  }
+
+  printf("DEMO 4-5: Attempting to write to %s with tfs_writeByte_offset \n", aTestFile);
+  if (tfs_writeByte_offset(aFD, 1, 'i') < 0) {
+    perror("DEMO 4: tfs_writeByte_offset failed");
+  } else {
+    printf("DEMO 4: Successfully wrote 'i' to the 1st byte offset of %s\n", aTestFile);
+  }
+
+  printf("DEMO 4-5: Reading 200 bytes from %s to make sure writes went through\n", aTestFile);
+  tfs_seek(aFD, SEEK_SET);
+  printf("-------------------------------\n\n");
+  /* now print the rest of it, byte by byte */
+  while (tfs_readByte (aFD, &readBuffer) >= 0){	/* go until readByte fails */
+    printf ("%c", readBuffer);
+  }
+  fflush(stdout);
+
+  printf("\n\n-------------------------------\n\n");
+  
+}
+
+void tiny_fs_test_5() {
+  /* Testing mount consistency checks  */
+  int disk_fd;
+  printf("----------------------- DEMO 5: Mount Consistency Checks-----------------------\n\n");
+  printf("DEMO 5-0: Attempting make default disk: %s\n", DEFAULT_DISK_NAME);
+
+  if(tfs_mkfs (DEFAULT_DISK_NAME, DEFAULT_DISK_SIZE) < 0) {
+    perror("tfs_mkds");
+  }
+  else {
+    printf("DEMO 5: Successfully created disk: %s\n", DEFAULT_DISK_NAME);
+  }
+
+  if (tfs_mount (DEFAULT_DISK_NAME) < 0) {
+    perror("tfs_mount");
+  }
+  else {
+    printf("DEMO 5: Successfully mounted %s\n", DEFAULT_DISK_NAME);
+  }
+
+  printf("DEMO 5-1: Corrupting the superblock of %s\n", DEFAULT_DISK_NAME);
+  // getting disk_fd to corrupt the superblock
+  if ((disk_fd = openDisk(DEFAULT_DISK_NAME, 0)) < 0) {
+    perror("mount");
+  }
+  char TFS_buffer[BLOCKSIZE];
+  if (write(disk_fd, TFS_buffer, BLOCKSIZE) < 0) {
+    perror("write");
+  }
+
+  if (readBlock(disk_fd, 0, TFS_buffer) < 0) {
+    perror("readBlock");
+  }
+
+  printf("DEMO 5: Corrupted superblock\n");
+  printf("Block Type: %c\n", ((superblock *)TFS_buffer)->block_type);
+  printf("Magic Number: %c\n", ((superblock *)TFS_buffer)->magic_num);
+  printf("Address of Root: %d\n", ((superblock *)TFS_buffer)->address_of_root);
+  printf("Next Free Block: %d\n", ((superblock *)TFS_buffer)->next_free_block);
+
+  printf("Demo 5-2: Attempting to mount disk with corrupted superblock: %s\n", DEFAULT_DISK_NAME);
+
+  if (tfs_mount(DEFAULT_DISK_NAME) < 0) {
+    printf("DEMO 5: Failed to mount file.");
+  }
+  else {
+    printf("DEMO 5: Successfully Mounted: %s, shouldn't happen\n", DEFAULT_DISK_NAME);
+  }
+
   
 }

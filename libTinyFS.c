@@ -984,9 +984,13 @@ int tfs_makeRO(char *name) {
     if (((inode *)TFS_buffer)->block_type == INODE_CODE && 
         ((inode *)TFS_buffer)->file_type == FILE_CODE &&
         (!strcmp(name, ((inode *)TFS_buffer)->filename))) {
-        
       // update, write, exit
       ((inode *)TFS_buffer)->read_only_bit = 1; // set to true;
+      // go back 1 block for update
+      if (lseek(curr_fs_fd, -BLOCKSIZE, SEEK_CUR) < 0) {
+          perror("lseek");
+          exit(EXIT_FAILURE);
+      }
       if (write(curr_fs_fd, TFS_buffer, BLOCKSIZE) < 0) {
         perror("write");
         exit(EXIT_FAILURE);
@@ -1016,6 +1020,11 @@ int tfs_makeRW(char *name) {
         
       // update, write, exit
       ((inode *)TFS_buffer)->read_only_bit = 0; // set to true;
+      // go back 1 block for update
+      if (lseek(curr_fs_fd, -BLOCKSIZE, SEEK_CUR) < 0) {
+        perror("lseek");
+        exit(EXIT_FAILURE);
+      }
       if (write(curr_fs_fd, TFS_buffer, BLOCKSIZE) < 0) {
         perror("write");
         exit(EXIT_FAILURE);
@@ -1036,6 +1045,19 @@ int tfs_writeByte(fileDescriptor FD, unsigned int data) {
   int pointer = curr_file_pointer.pointer % FILE_EXTENT_DATA_LIMIT;
   int next_fe_offset = curr_file_pointer.next_file_extent_offset;
   int curr_fe_offset = curr_file_pointer.curr_file_extent_offset;
+  
+  // buffer that stores the file extent contents
+  char TFS_buffer[BLOCKSIZE];
+
+  // get the superblock check for first file content block
+  if ((disk_error = readBlock(curr_fs_fd, curr_file_pointer.inode_offset, TFS_buffer)) < 0) {
+    return disk_error;
+  }
+
+  // fail and return error if it's read_only
+  if (((inode *)TFS_buffer) -> read_only_bit) {
+    return EROFS;
+  }
 
   // File pointer has already past the end of the file
   if (curr_file_pointer.pointer >= curr_file_pointer.file_size) {
@@ -1043,8 +1065,6 @@ int tfs_writeByte(fileDescriptor FD, unsigned int data) {
     return TFS_EFO;
   }
 
-  // buffer that stores the file extent contents
-  char TFS_buffer[BLOCKSIZE];
 
   // end of data block for file pointer and there's still a data block, 
   // change curr_file_extent_offset and next_file_extent_offset
@@ -1094,18 +1114,27 @@ int tfs_writeByte_offset(fileDescriptor FD, int offset, unsigned int data) {
   
   /* Note: this function uses the same structure as tfs_readByte */
   file_pointer curr_file_pointer = file_descriptor_table[FD];
-  int pointer = curr_file_pointer.pointer % FILE_EXTENT_DATA_LIMIT;
   int next_fe_offset = curr_file_pointer.next_file_extent_offset;
   int curr_fe_offset = curr_file_pointer.curr_file_extent_offset;
+
+  // buffer that stores the file extent contents
+  char TFS_buffer[BLOCKSIZE];
+  
+  // get the superblock check for first file content block
+  if ((disk_error = readBlock(curr_fs_fd, curr_file_pointer.inode_offset, TFS_buffer)) < 0) {
+    return disk_error;
+  }
+
+  // fail and return error if it's read_only
+  if (((inode *)TFS_buffer) -> read_only_bit) {
+    return EROFS;
+  }
 
   // error out if it's trying to write more than the file_size
   if (offset >= curr_file_pointer.file_size) {
     perror("end of file");
     return TFS_EFO;
   }
-
-  // buffer that stores the file extent contents
-  char TFS_buffer[BLOCKSIZE];
 
   // end of data block for file pointer and there's still a data block, 
   // change curr_file_extent_offset and next_file_extent_offset
@@ -1129,7 +1158,7 @@ int tfs_writeByte_offset(fileDescriptor FD, int offset, unsigned int data) {
   }
 
   // set the current data to the data from parameter
-  (((file_extent *)TFS_buffer)->data + pointer)[0] = data;
+  (((file_extent *)TFS_buffer)->data)[offset] = data;
 
   // write the byte into the current position
   if (writeBlock(curr_fs_fd, curr_fe_offset, TFS_buffer) < 0) {
