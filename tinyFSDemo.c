@@ -57,28 +57,28 @@ void tiny_fs_test_1(char *disk_name) {
   char *test_disk_file = "second_disk";
   printf("----------------------- Demo 1: Testing File, Mounting, and Unmounting -----------------------\n\n");
 
-  printf("Demo 1-1: Attempting to create file: %s\n", disk_name);
+  printf("Demo 1-1: Attempting to create disk: %s\n", disk_name);
 
   if ((disk_err = tfs_mkfs(disk_name, DEFAULT_DISK_SIZE)) < 0) {
     // this should not fail
-    printf("Failed to create TINYFS %s with error code '%d'\n", disk_name, disk_err);
+    printf("Failed to create TINYFS %s\n", disk_name);
   }
   else {
-    printf("Successfully created TINYFS %s with error code '%d'\n", disk_name, disk_err);
+    printf("Successfully created TINYFS %s\n", disk_name);
   }
 
-  printf("Demo 1-2: Attempting to create file: %s\n", test_disk_file);
+  printf("Demo 1-2: Attempting to create disk: %s\n", test_disk_file);
 
-  // creating second disk to test mount and unmount
+  // creating second disk to test mount
   if ((disk_err = tfs_mkfs(test_disk_file, DEFAULT_DISK_SIZE)) < 0) {
     // this should not fail
-    printf("DEMO 1: Failed to create TINYFS %s with error code '%d'\n", disk_name, disk_err);
+    printf("DEMO 1: Failed to create TINYFS %s\n", test_disk_file);
   }
   else {
-    printf("DEMO 1: Successfully created TINYFS %s with error code '%d'\n", disk_name, disk_err);
+    printf("DEMO 1: Successfully created TINYFS %s\n", test_disk_file);
   }
 
-  printf("Demo 1-3: Attempting to mount file: %s\n", disk_name);
+  printf("Demo 1-3: Attempting to mount disk: %s\n", disk_name);
 
   if ((disk_err = tfs_mount(disk_name)) < 0) {
     printf("DEMO: Failed to Mount file. This should not have happened");
@@ -87,10 +87,10 @@ void tiny_fs_test_1(char *disk_name) {
     printf("Demo 1: Successfully Mounted: %s\n", disk_name);
   }
 
-  printf("Demo 1-4: Attempting to unmount file: %s\n", disk_name);
+  printf("Demo 1-4: Attempting to unmount: %s\n", disk_name);
   
   if ((disk_err = tfs_unmount()) < 0) {
-    printf("DEMO: Failed to unmount file. This should not have happened");
+    printf("DEMO: Failed to unmount. This should not have happened");
   }
   else {
     printf("DEMO 1: Successfully Unmounted: %s\n", disk_name);
@@ -105,7 +105,7 @@ void tiny_fs_test_1(char *disk_name) {
     printf("Failed to fail out of unmount\n");
   }
 
-  printf("Demo 1-6: Attempting to Mount file after another file\n");
+  printf("Demo 1-6: Attempting to Mount file after another file has mounted\n");
 
   if ((disk_err = tfs_mount(disk_name)) < 0) {
     printf("DEMO: Failed to Mount file. This should not have happened");

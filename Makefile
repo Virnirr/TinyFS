@@ -10,15 +10,6 @@ OBJS = libTinyFS.o libDisk.o tinyFsDemo.o
 $(PROG): $(OBJS)
 	$(CC) $(CFLAGS) -o $(PROG) $(OBJS)
 
-dTest: $(DOBJS)
-	$(CC) $(CFLAGS) -o $(DTEST) $(DOBJS)
-
-tfsTest.o: tfsTest.c libTinyFS.h
-	$(CC) $(CFLAGS) -c -o $@ $<
-
-diskTest.o: diskTest.c libDisk.h
-	$(CC) $(CFLAGS) -c -o $@ $<
-
 tinyFsDemo.o: tinyFSDemo.c libTinyFS.h TinyFS_errno.h
 	$(CC) $(CFLAGS) -c -o $@ $<
 
@@ -31,3 +22,7 @@ libDisk.o: libDisk.c libDisk.h libTinyFS.h TinyFS_errno.h
 clean:	
 	rm -f $(OBJS) *~ TAGS
 	rm tinyFSDemo diskX.dsk second_disk tinyFSDisk
+
+submission: libDisk.c libDisk.h libTinyFS.c libTinyFS.h Makefile README.md TinyFS_errno.h tinyFSDemo.c
+	tar -cf project4_submission.tar libDisk.c libDisk.h libTinyFS.c libTinyFS.h Makefile README.md TinyFS_errno.h tinyFSDemo.c
+	gzip project4_submission.tar
