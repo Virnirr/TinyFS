@@ -1,5 +1,15 @@
+Author: Zhixiang He, Sean Phun, Dennis Phun
+
+# TinyFS and Disk Overview
+
+![](/static/tinyfs-overview.png)
+
+# Disk Emulator Implementation
+
+A “block device emulator” library that allows for block operations like opening, reading, and writing to a disk. The hard disk drives implementation uses regular Unix file as storage.
+
 # TinyFS Design Decisions and Implementations
-## Name: Zhixiang He, Sean Phun, Dennis Phun
+
 ### 1. Superblock
 
 Contains magic_number (i.e. 0x44), address of root, and the next free block chained in a linked list (explained later)
